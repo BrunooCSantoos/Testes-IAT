@@ -3,8 +3,6 @@ import glob
 import os
 from PyPDF2 import PdfReader
 
-caminho_diretorio = os.getcwd()
-
 def extrair_texto_pdf(caminho_pdf, caminho_txt_paginas_filtradas, palavras_chave, matchcase=False):
     try:
         with open(caminho_pdf, "rb") as arquivo_pdf, open(caminho_txt_paginas_filtradas, "w", encoding="utf-8") as arquivo_txt_saida:
@@ -44,75 +42,31 @@ def filtrar_paragrafos_por_palavras_chave(caminho_txt_entrada, caminho_txt_saida
 def extrair_portarias(paragrafos, matchcase=False):
     portarias_encontradas = []
     portaria_atual_linhas = []
-    capturando = False
     flags = 0 if matchcase else re.IGNORECASE
 
     # Padrão para identificar o início de uma portaria.
     # Flexibilizado para capturar "PORTARIA Nº" seguido do número, com ou sem data completa.
     # Adicionado "(?:\bINSTITUTO ÁGUA E TERRA\b\s*)?" para capturar o órgão se ele aparecer logo antes.
     # O foco é no "PORTARIA Nº" como cabeçalho.
-    padrao_inicio_portaria = re.compile(
-        r'(?:^|\n)\s*(?:INSTITUTO\s+ÁGUA\s+E\s+TERRA\s*|SECRETARIA\s+DE\s+ESTADO.*?|MINISTÉRIO\s+PÚBLICO.*?)?\s*PORTARIA\s+Nº\s*([\d.]+)', 
+    padrao_portaria = re.compile(
+        r'\bPORTARIA\b(?:\bDiretor\s*-\s*Presidente do Instituto Água e Terra\b)', 
         flags
     )
 
-    # Padrões para identificar o fim de uma PORTARIA (fim de um bloco administrativo).
-    # Prioriza o início de um novo DECRETO ou PORTARIA ou SEÇÃO clara.
-    padrao_fim_portaria_bloco = re.compile(
-        r'(?:^|\n)(?:'
-        r'\bDECRETO Nº\s*[\d.]+|'                          # Início de um novo DECRETO
-        r'\bPORTARIA Nº\s*[\d.]+\s*(?:DE\s*\d+\s+DE\s+\w+\s+DE\s+\d{4})?|' # Início de uma nova PORTARIA (com ou sem data)
-        r'Despachos do Governador|'                      # Início de seção de despachos do Governador
-        r'Despachos do Chefe da Casa Civil|'             # Início de seção de despachos do Chefe da Casa Civil
-        r'MINUTA DECRETO|'                               # Outro marcador que pode indicar fim de um documento
-        r'RESOLUÇÃO SEFA|'                               # Outro tipo de documento oficial
-        r'ATO DO SECRETÁRIO|'                            # Outro tipo de ato
-        r'COORDENADORIA DO PROGRAMA ESTADUAL DE SANIDADE ANIMAL|' # Outra seção
-        r'DEPARTAMENTO DE TRÂNSITO DO PARANÁ - DETRAN/PR|' # Outra seção
-        r'SECRETARIA DA CIÊNCIA, TECNOLOGIA E ENSINO SUPERIOR|' # Outra seção
-        r'\Z'                                            # Fim do arquivo (garante que o último seja capturado)
-        r')',
-        flags
-    )
-
-    for i, paragrafo in enumerate(paragrafos):
+    for paragrafo in paragrafos:
         if re.match(r'--- Início da Página \d+ ---', paragrafo):
             continue
 
-        match_inicio_portaria = padrao_inicio_portaria.search(paragrafo)
-        is_fim_bloco = padrao_fim_portaria_bloco.search(paragrafo)
+        match_portaria = padrao_portaria.search(paragrafo)
 
-        if match_inicio_portaria:
+        if match_portaria:
             # Se já estava capturando e encontrou um novo início de portaria, finalize o anterior.
-            if capturando and portaria_atual_linhas:
+            if portaria_atual_linhas:
                 portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
                 portaria_atual_linhas = []
             
-            capturando = True
             portaria_atual_linhas.append(paragrafo)
-        elif capturando:
-            # Se estamos capturando e o parágrafo atual é um delimitador de fim de bloco
-            # E não é um novo início de portaria (que já seria tratado pelo 'if match_inicio_portaria').
-            if is_fim_bloco and not match_inicio_portaria:
-                # Se o delimitador de fim de bloco REALMENTE inicia um novo ato ou seção
-                # então o documento atual termina ANTES dessa linha.
-                # Esta verificação é crucial para evitar cortar documentos no meio.
-                if re.search(r'\bDECRETO Nº\s*[\d.]+|'
-                             r'\bPORTARIA Nº\s*[\d.]+\s*(?:DE\s*\d+\s+DE\s+\w+\s+DE\s+\d{4})?|'
-                             r'Despachos do Governador|'
-                             r'Despachos do Chefe da Casa Civil|'
-                             r'MINUTA DECRETO|RESOLUÇÃO SEFA|ATO DO SECRETÁRIO|COORDENADORIA.*?|DEPARTAMENTO.*?|SECRETARIA.*?', 
-                             paragrafo, flags):
-                    if portaria_atual_linhas:
-                        portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
-                        portaria_atual_linhas = []
-                        capturando = False 
-                else:
-                    # Se não é um início de um novo documento/seção claro, continua capturando
-                    portaria_atual_linhas.append(paragrafo)
-            else:
-                portaria_atual_linhas.append(paragrafo)
-
+        
     if portaria_atual_linhas:
         portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
 
@@ -138,7 +92,7 @@ def filtrar_portarias_designacao_ferias_iat(portarias, matchcase=False):
         
         # Padrão para portarias de férias: 'Designar' e 'férias' e 'IAT' no mesmo bloco.
         padrao_ferias_iat = re.compile(
-            r'Designar.*?por\s+motivo\s+de\s+férias.*?INSTITUTO\s+ÁGUA\s+E\s+TERRA|\bIAT\b', 
+            r'Designar.*?férias.*?INSTITUTO\s+ÁGUA\s+E\s+TERRA|\bIAT\b',
             re.IGNORECASE | re.DOTALL
         )
         
@@ -193,7 +147,7 @@ def remover_arquivos_temporarios(arquivos):
 def ler(caminho_diretorio):
     print("Iniciando leitura de portarias...")
     
-    padrao_pdf = os.path.join(caminho_diretorio, "*.pdf")
+    padrao_pdf = os.path.join(caminho_diretorio, "EX*.pdf")
     arquivos_pdf = glob.glob(padrao_pdf)
 
     palavras_chave_gerais = [
@@ -236,7 +190,7 @@ def ler(caminho_diretorio):
             caminho_txt_paginas_filtradas,
             caminho_txt_paragrafos_filtrados
         ]
-        remover_arquivos_temporarios(arquivos_para_remover)
+        #remover_arquivos_temporarios(arquivos_para_remover)
 
 if __name__ == "__main__":
     print("Este script é um módulo e deve ser executado através de 'main.py'.")

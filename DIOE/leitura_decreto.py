@@ -3,8 +3,6 @@ import glob
 import os
 from PyPDF2 import PdfReader
 
-caminho_diretorio = os.getcwd()
-
 def extrair_texto_pdf(caminho_pdf, caminho_txt_paginas_filtradas, palavras_chave, matchcase=False):
     try:
         with open(caminho_pdf, "rb") as arquivo_pdf, open(caminho_txt_paginas_filtradas, "w", encoding="utf-8") as arquivo_txt_saida:
@@ -55,24 +53,15 @@ def extrair_decretos(paragrafos, matchcase=False):
     flags = 0 if matchcase else re.IGNORECASE
 
     # Padrão para identificar o início de um decreto, capturando o número
-    padrao_inicio_decreto = re.compile(r'\bDECRETO Nº\s*([\d.]+)', flags)
+    padrao_inicio_decreto = re.compile(
+        r'\bDECRETO\b', 
+        flags
+    )
 
     # Padrões para identificar o fim de um DECRETO (fim de um bloco administrativo)
     # Não inclui "Início da Página" como delimitador de fim de documento.
     padrao_fim_decreto_bloco = re.compile(
-        r'(?:^|\n)(?:'
-        r'\bDECRETO Nº\s*[\d.]+|'              # Início de um novo DECRETO
-        r'\bPORTARIA Nº\s*[\d.]+|'             # Início de uma nova PORTARIA
-        r'Despachos do Governador|'          # Início de seção de despachos do Governador
-        r'Despachos do Chefe da Casa Civil|' # Início de seção de despachos do Chefe da Casa Civil
-        r'MINUTA DECRETO|'                   # Outro marcador que pode indicar fim de um documento
-        r'RESOLUÇÃO SEFA|'                   # Outro tipo de documento oficial
-        r'ATO DO SECRETÁRIO|'                # Outro tipo de ato
-        r'COORDENADORIA DO PROGRAMA ESTADUAL DE SANIDADE ANIMAL|' # Outra seção
-        r'DEPARTAMENTO DE TRÂNSITO DO PARANÁ - DETRAN/PR|' # Outra seção
-        r'SECRETARIA DA CIÊNCIA, TECNOLOGIA E ENSINO SUPERIOR|' # Outra seção
-        r'\Z'                                # Fim do arquivo (garante que o último seja capturado)
-        r')',
+        r'(?:\bGovernador do Estado\b)',
         flags
     )
 
@@ -120,24 +109,16 @@ def filtrar_decretos_de_nomeacao_por_orgao(decretos, matchcase=False):
     decretos_filtrados = []
     flags = 0 if matchcase else re.IGNORECASE
     
-    padrao_nomeacao = re.compile(r'Nomeia,\s+em\s+virtude\s+de\s+habilitação\s+em\s+concurso\s+público|Nomeação\s+de\s+servidores|Nomeação\s+para\s+o\s+cargo', flags)
-    padrao_orgao_seap = re.compile(r'Secretaria\s+de\s+Estado\s+da\s+Administração\s+e\s+da\s+Previdência\s*–\s*SEAP', flags)
+    padrao_nomeacao = re.compile(r'Nomeia|Nomeação', flags)
+    padrao_orgao_seap = re.compile(r'Secretaria\s+de\s+Estado\s+da\s+Administração\s+e\s+da\s+Previdência\s*-\s*SEAP', flags)
     padrao_orgao_iat = re.compile(r'INSTITUTO\s+ÁGUA\s+E\s+TERRA|\bIAT\b', flags)
-    
-    # Adicionado padrão para verificar se o decreto é de ampliação de vagas
-    # Este padrão deve capturar "ampliação de X vagas"
-    padrao_ampliacao_vagas = re.compile(r'AUTORIZO\s*,\s*nos\s+termos\s+do\s+art\.\s*\d+º,\s*§\d+º,\s*do\s+Decreto\s*nº\s*[\d.]+/[\d]{4},\s*a\s+ampliação\s+de\s*(\d+)\s*\((\w+)\)\s*vagas', flags)
     
     for decreto_conteudo in decretos:
         is_nomeacao = bool(padrao_nomeacao.search(decreto_conteudo))
         is_seap = bool(padrao_orgao_seap.search(decreto_conteudo))
         is_iat = bool(padrao_orgao_iat.search(decreto_conteudo))
         
-        match_ampliacao = padrao_ampliacao_vagas.search(decreto_conteudo)
-
         if is_nomeacao and (is_seap or is_iat):
-            decretos_filtrados.append(decreto_conteudo)
-        elif match_ampliacao: # Se for um decreto de ampliação de vagas, adicione também
             decretos_filtrados.append(decreto_conteudo)
 
     return decretos_filtrados
@@ -174,13 +155,13 @@ def remover_arquivos_temporarios(arquivos):
 def ler(caminho_diretorio):
     print("Iniciando leitura de decretos...")
     
-    padrao_pdf = os.path.join(caminho_diretorio, "*.pdf")
+    padrao_pdf = os.path.join(caminho_diretorio, "EX*.pdf")
     arquivos_pdf = glob.glob(padrao_pdf)
 
     palavras_chave_gerais = [
         "DECRETO Nº", "Nomeação", "servidores", "cargo", "Quadro Próprio do Poder Executivo",
-        "Secretaria de Estado da Administração e da Previdência – SEAP", "INSTITUTO ÁGUA E TERRA", "IAT",
-        "concurso público", "ampliação de vagas" # Adicionado para capturar decretos de ampliação
+        "Secretaria de Estado da Administração e da Previdência - SEAP", "INSTITUTO ÁGUA E TERRA", "IAT",
+        "concurso público"
     ]
     
     for arquivo_pdf in arquivos_pdf:
@@ -212,7 +193,7 @@ def ler(caminho_diretorio):
             caminho_txt_paginas_filtradas,
             caminho_txt_paragrafos_filtrados
         ]
-        remover_arquivos_temporarios(arquivos_para_remover)
+        #remover_arquivos_temporarios(arquivos_para_remover)
 
 if __name__ == "__main__":
     print("Este script é um módulo e deve ser executado através de 'main.py'.")

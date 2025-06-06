@@ -152,7 +152,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                     situacao = "Nomeação"
                 elif "PORTARIA Nº" in conteudo_documento_str:
                     # Priorizar a detecção de "Designação (Substituição por Férias)"
-                    if re.search(r'por\s+motivo\s+de\s+férias\s+do\s+titular', conteudo_documento_str, re.IGNORECASE):
+                    if re.search(r'férias', conteudo_documento_str, re.IGNORECASE):
                         situacao = "Designação (Substituição por Férias)"
                         
                         # Regex mais flexível para o substituto (nome e RG), permitindo ou não "o/a servidor/servidora"
@@ -161,9 +161,9 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
                         )
                         if match_substituto:
-                            substituto_name_raw = match_substituto.group(1).strip()
+                            substituto_nome_raw = match_substituto.group(1).strip()
                             # Remove "o", "a", "servidor", "servidora" se estiverem colados ao nome
-                            substituto_nome = re.sub(r'^(?:o|a)\s+', '', substituto_name_raw, flags=re.IGNORECASE).strip()
+                            substituto_nome = re.sub(r'^(?:o|a)\s+', '', substituto_nome_raw, flags=re.IGNORECASE).strip()
                             substituto_nome = re.sub(r'^(?:servidor|servidora)\s+', '', substituto_nome, flags=re.IGNORECASE).strip()
                             
                             nome = substituto_nome # O campo 'Nome' será o do substituto
@@ -171,7 +171,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                         
                         # Regex para o titular em férias (focando apenas no nome e RG)
                         match_titular_ferias = re.search(
-                            r'férias\s+do\s+titular\s+([A-Z\u00C0-\u00FF\s]+?),\s*RG\s+nº\s*[\d.xX-]+',
+                            r'férias\s*do\s*titular\s*([A-Z\u00C0-\u00FF\s]+?)\s*,\s*RG\s+nº\s*[\d.xX-]+',
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
                         )
                         if match_titular_ferias:
@@ -218,7 +218,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                     r'para\s+exercer(?:em)?\s+' # "para exercer" ou "para exercerem"
                     r'(?:em\s+comissão\s+o\s+cargo\s+de|o\s+cargo\s+de|a\s+função\s+de)\s*' # Formas de introdução
                     r'(.+?)' # Captura o nome do cargo/função (não-guloso)
-                    r'(?=\s*[,.]?\s*(?:no\s+período|por\s+motivo|Lei|do\s+Quadro|Art\.\s*\d+|Curitiba,|\(assinado\s+eletronicamente\)|\s*DECRETA:\s*|\s*PORTARIA:\s*|--- FIM D(?:A PORTARIA|O DECRETO)|\Z))',
+                    r'(?=\s*[,.]?\s*(?:-\s+de|no\s+período|por\s+motivo|Lei|do\s+Quadro|Art\.\s*\d+|Curitiba,|\(assinado\s+eletronicamente\)|\s*DECRETA:\s*|\s*PORTARIA:\s*|--- FIM D(?:A PORTARIA|O DECRETO)|\Z))',
                     # Novos delimitadores de parada no lookahead:
                     # - 'Art.\s*\d+': Início de um novo artigo (ex: Art. 1º)
                     # - 'Curitiba,': Início da linha de assinatura de decretos/portarias

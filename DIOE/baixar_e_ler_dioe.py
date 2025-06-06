@@ -188,7 +188,7 @@ def start(caminho_diretorio):
     arquivos_pdf = glob.glob(padrao_arquivo_pdf)
 
     for arquivo_pdf in arquivos_pdf:
-        os.remove(arquivo_pdf)
+        #os.remove(arquivo_pdf)
         print(f"\nArquivo {arquivo_pdf} removido.")
     
     print("\nConcluído\n")
