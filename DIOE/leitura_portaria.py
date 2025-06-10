@@ -24,116 +24,153 @@ def extrair_texto_pdf(caminho_pdf, caminho_txt_paginas_filtradas, palavras_chave
 
 def filtrar_paragrafos_por_palavras_chave(caminho_txt_entrada, caminho_txt_saida, palavras_chave, matchcase=False):
     try:
-        with open(caminho_txt_entrada, 'r', encoding='utf-8') as f_entrada, open(caminho_txt_saida, 'w', encoding='utf-8') as f_saida:
-            conteudo = f_entrada.read()
-            paragrafos = conteudo.split('\n')
+        with open(caminho_txt_entrada, 'r', encoding='utf-8') as f_entrada, \
+             open(caminho_txt_saida, 'w', encoding='utf-8') as f_saida:
             
+            conteudo = f_entrada.read()
+            paragrafos = re.split(r'\n\s*\n+', conteudo)
             flags = 0 if matchcase else re.IGNORECASE
             
             for paragrafo in paragrafos:
-                if re.match(r'--- Início da Página \d+ ---', paragrafo) or \
-                   any(re.search(r'\b' + re.escape(palavra) + r'\b', paragrafo, flags=flags) for palavra in palavras_chave):
-                    f_saida.write(paragrafo.strip() + '\n')
+                # Remove espaços em branco do início e fim do parágrafo para uma correspondência precisa.
+                paragrafo_limpo = paragrafo.strip()
+                
+                # Critério 1: Verifica se é um marcador de página.
+                is_page_marker = re.match(r'--- Início da Página \d+ ---', paragrafo_limpo)
+                
+                # Critério 2: Verifica se o parágrafo começa com "DECRETO".
+                starts_with_portaria = re.match(r'PORTARIA', paragrafo_limpo, flags=flags)
+                
+                # Critério 3: Verifica se o parágrafo termina com "Governador do Estado".
+                # Usa \s*$ para considerar espaços em branco opcionais antes do fim da linha.
+                ends_with = re.search(r'Diretor\s*-\s*Presidente do Instituto Água e Terra', paragrafo_limpo, flags=flags)
+                
+                # Critério 4: Verifica se o parágrafo contém alguma das palavras-chave fornecidas.
+                # A \b garante que a palavra seja correspondida como uma palavra inteira.
+                contains_keywords = any(re.search(r'\b' + re.escape(palavra) + r'\b', paragrafo_limpo, flags=flags) 
+                                        for palavra in palavras_chave)
+                
+                # Inclui o parágrafo se qualquer um dos critérios for verdadeiro:
+                # É um marcador de página OU (começa com DECRETO E termina com Governador do Estado) OU contém palavras-chave.
+                if is_page_marker or \
+                   (starts_with_portaria and ends_with) or \
+                   contains_keywords:
+                    # Escreve o parágrafo limpo no arquivo de saída, adicionando uma linha em branco
+                    # para manter a separação dos parágrafos no arquivo de saída.
+                    f_saida.write("\n\n" + paragrafo_limpo + '\n\n')
+                    
     except Exception as e:
+        # Em caso de erro, imprime a mensagem de erro e retorna False.
         print(f"Erro ao filtrar parágrafos de '{caminho_txt_entrada}': {e}")
         return False
+        
+    # Se a execução for bem-sucedida, retorna True.
     return True
 
 def extrair_portarias(paragrafos, matchcase=False):
     portarias_encontradas = []
     portaria_atual_linhas = []
+    capturando = False
     flags = 0 if matchcase else re.IGNORECASE
+    fim_bloco_count = 0 # Contador para as ocorrências do padrão de fim de bloco
 
-    # Padrão para identificar o início de uma portaria.
-    # Flexibilizado para capturar "PORTARIA Nº" seguido do número, com ou sem data completa.
-    # Adicionado "(?:\bINSTITUTO ÁGUA E TERRA\b\s*)?" para capturar o órgão se ele aparecer logo antes.
-    # O foco é no "PORTARIA Nº" como cabeçalho.
-    padrao_portaria = re.compile(
-        r'\bPORTARIA\b(?:\bDiretor\s*-\s*Presidente do Instituto Água e Terra\b)', 
+    # Padrão para identificar o início de uma portaria
+    padrao_inicio_portaria = re.compile(
+        r'\bPORTARIA\b', 
         flags
     )
 
-    for paragrafo in paragrafos:
+    # Padrão para identificar o fim de uma PORTARIA (fim de um bloco administrativo)
+    padrao_fim_portaria_bloco = re.compile(
+        r'\bDiretor\s*-\s*Presidente do Instituto Água e Terra\b',
+        flags
+    )
+
+    for i, paragrafo in enumerate(paragrafos):
+        # Ignora marcadores de página ao processar documentos
         if re.match(r'--- Início da Página \d+ ---', paragrafo):
             continue
 
-        match_portaria = padrao_portaria.search(paragrafo)
+        is_inicio_portaria = padrao_inicio_portaria.search(paragrafo)
+        is_fim_bloco = padrao_fim_portaria_bloco.search(paragrafo)
 
-        if match_portaria:
-            # Se já estava capturando e encontrou um novo início de portaria, finalize o anterior.
-            if portaria_atual_linhas:
+        if is_inicio_portaria:
+            if capturando and portaria_atual_linhas:
+                # Se já estava capturando e encontrou um novo início de portaria,
+                # finalize a portaria anterior (mesmo que o segundo delimitador não tenha sido encontrado).
+                # Isso é importante para evitar portarias "perdidas" se o padrão de fim não se repetir.
                 portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
-                portaria_atual_linhas = []
-            
+            portaria_atual_linhas = [paragrafo] # Começa uma nova portaria com o parágrafo atual
+            capturando = True
+            fim_bloco_count = 0 # Reseta o contador para a nova portaria
+        elif capturando:
+            # Se estamos capturando, adicione o parágrafo atual à portaria
             portaria_atual_linhas.append(paragrafo)
-        
+            
+            # Se o parágrafo adicionado contém o marcador de fim de bloco
+            if is_fim_bloco:
+                fim_bloco_count += 1 # Incrementa o contador
+                
+                # Se esta é a segunda ocorrência do marcador de fim de bloco,
+                # finalize a portaria atual.
+                if fim_bloco_count == 2:
+                    portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
+                    portaria_atual_linhas = [] # Limpa para a próxima portaria
+                    capturando = False
+                    fim_bloco_count = 0 # Reseta o contador
+                
+    # Adiciona a última portaria se ainda estiver capturando ao final do loop
+    # Isso pode ocorrer se o segundo delimitador não foi encontrado até o final do documento.
     if portaria_atual_linhas:
         portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
 
     return portarias_encontradas
 
-def filtrar_portarias_designacao_ferias_iat(portarias, matchcase=False):
-    portarias_filtradas = []
+def filtrar_portarias_designacao_ferias_iat(portarias, matchcase=True):
+    portarias_filtrados = []
+    # Define as flags para a expressão regular, considerando a sensibilidade a maiúsculas/minúsculas.
+    flags = 0 if matchcase else re.IGNORECASE
     
-    # Padrão para EXCLUIR portarias que contenham "agente de contratação" ou "pregoeiro"
-    padrao_exclusao_agente_contratacao = re.compile(
-        r'agente\s+de\s+contratação|\bpregoeiro\b', 
-        re.IGNORECASE | re.DOTALL
-    )
+    # Compila os padrões regex para eficiência
+    padrao_inicio_portaria = re.compile(r'PORTARIA', flags)
+    padrao_designacao = re.compile(r'Designar|Designação|Designa', flags)
+    padrao_ferias = re.compile(r'férias', flags)
+    # Novo padrão para verificar a frase "Governador do Estado"
+    padrao_fim = re.compile(r'Diretor\s*-\s*Presidente do Instituto Água e Terra', flags)
+    
+    # Itera sobre os decretos usando índices
+    for i in range(len(portarias)):
+        current_portaria_conteudo = portarias[i].strip() # Pega o conteúdo do decreto atual
+        
+        # Primeiro critério: O decreto atual DEVE começar com "DECRETO"
+        if not padrao_inicio_portaria.search(current_portaria_conteudo):
+            continue # Se não começar com "DECRETO", pula para o próximo decreto
+        
+        # Realiza a busca dos padrões na string concatenada da janela
+        is_designacao = bool(padrao_designacao.search(current_portaria_conteudo))
+        is_ferias = bool(padrao_ferias.search(current_portaria_conteudo))
+        is_governador_do_estado = bool(padrao_fim.search(current_portaria_conteudo)) # Nova verificação
+        
+        # Se todos os critérios forem atendidos pela janela, adiciona o *decreto atual* à lista filtrada
+        if is_designacao and is_ferias and is_governador_do_estado:
+            portarias_filtrados.append(current_portaria_conteudo)
 
-    for portaria_conteudo in portarias:
-        # PRIMEIRO: Verificar se a portaria deve ser EXCLUÍDA
-        if padrao_exclusao_agente_contratacao.search(portaria_conteudo):
-            print(f"Portaria excluída (agente de contratação/pregoeiro): {portaria_conteudo[:100]}...") # Log para depuração
-            continue # Pula esta portaria, não a adiciona à lista de filtradas
-        
-        # Padrões para identificar Designação (sem ser férias) e Férias, ambos para o IAT
-        # A ordem de verificação é importante.
-        
-        # Padrão para portarias de férias: 'Designar' e 'férias' e 'IAT' no mesmo bloco.
-        padrao_ferias_iat = re.compile(
-            r'Designar.*?férias.*?INSTITUTO\s+ÁGUA\s+E\s+TERRA|\bIAT\b',
-            re.IGNORECASE | re.DOTALL
-        )
-        
-        # Padrão para portarias de designação (geral, que não sejam férias) E para o IAT.
-        padrao_designacao_iat = re.compile(
-            r'Designar.*?(?:INSTITUTO\s+ÁGUA\s+E\s+TERRA|\bIAT\b)', 
-            re.IGNORECASE | re.DOTALL
-        )
-        
-        # Ordem de verificação: Mais específico primeiro para evitar falsos positivos
-        if padrao_ferias_iat.search(portaria_conteudo):
-            portarias_filtradas.append((portaria_conteudo, "ferias"))
-        elif padrao_designacao_iat.search(portaria_conteudo):
-            portarias_filtradas.append((portaria_conteudo, "designacao"))
-            
-    return portarias_filtradas
+    return portarias_filtrados
 
-
-def salvar_documentos_em_arquivo(documentos_com_tipo, caminho_arquivo_designacao, caminho_arquivo_ferias):
+def salvar_documentos_em_arquivo(documentos, caminho_arquivo, titulo_secao):
     try:
-        with open(caminho_arquivo_designacao, 'w', encoding='utf-8') as f_designacao, \
-             open(caminho_arquivo_ferias, 'w', encoding='utf-8') as f_ferias:
-            
-            for i, (doc_conteudo, tipo_doc) in enumerate(documentos_com_tipo):
-                match_numero_portaria = re.search(r'\bPORTARIA Nº\s*([\d.]+)', doc_conteudo, re.IGNORECASE)
-                numero = match_numero_portaria.group(1).strip() if match_numero_portaria else "Sem Numero"
+        with open(caminho_arquivo, 'w', encoding='utf-8') as f:
+            for i, decreto in enumerate(documentos):
+                # Tenta identificar o número do decreto para incluir no marcador
+                match_numero = re.search(r'\bPORTARIA Nº\s*([\d.]+)', decreto, re.IGNORECASE)
+                numero = match_numero.group(1).strip() if match_numero else "Sem Numero"
                 
-                if tipo_doc == "designacao":
-                    f_designacao.write(f"\n--- INÍCIO DA PORTARIA DE DESIGNAÇÃO IAT {numero} ---\n")
-                    f_designacao.write(doc_conteudo.strip() + "\n")
-                    f_designacao.write(f"--- FIM DA PORTARIA DE DESIGNAÇÃO IAT {numero} ---\n\n")
-                elif tipo_doc == "ferias":
-                    f_ferias.write(f"\n--- INÍCIO DA PORTARIA DE FÉRIAS IAT {numero} ---\n")
-                    f_ferias.write(doc_conteudo.strip() + "\n")
-                    f_ferias.write(f"--- FIM DA PORTARIA DE FÉRIAS IAT {numero} ---\n\n")
-
-        print(f"Portarias de designação salvas em: {caminho_arquivo_designacao}")
-        print(f"Portarias de férias salvas em: {caminho_arquivo_ferias}")
-
+                f.write(f"\n--- INÍCIO {titulo_secao} {numero} ---\n")
+                f.write(decreto.strip() + "\n")
+                f.write(f"--- FIM {titulo_secao} {numero} ---\n\n")
+        print(f"Decretos salvos em: {caminho_arquivo}")
     except Exception as e:
-        print(f"Erro ao salvar documentos: {e}")
+        print(f"Erro ao salvar decretos em '{caminho_arquivo}': {e}")
 
 def remover_arquivos_temporarios(arquivos):
     for arquivo in arquivos:
@@ -151,8 +188,8 @@ def ler(caminho_diretorio):
     arquivos_pdf = glob.glob(padrao_pdf)
 
     palavras_chave_gerais = [
-        "PORTARIA Nº", "Designar", "férias", "substituição", "servidor",
-        "INSTITUTO ÁGUA E TERRA", "IAT", "cargo", "função", "RG"
+        "PORTARIA Nº", "Designar", "férias",
+        "INSTITUTO ÁGUA E TERRA", "IAT"
     ]
 
     for arquivo_pdf in arquivos_pdf:
@@ -167,7 +204,7 @@ def ler(caminho_diretorio):
                 with open(caminho_txt_paragrafos_filtrados, 'r', encoding='utf-8') as f:
                     texto_paragrafos = f.read().split('\n')
                 
-                matchcase = False
+                matchcase = True
                 todas_portarias = extrair_portarias(texto_paragrafos, matchcase)
                 
                 portarias_filtradas_e_classificadas = filtrar_portarias_designacao_ferias_iat(todas_portarias, matchcase)
@@ -176,7 +213,7 @@ def ler(caminho_diretorio):
                     salvar_documentos_em_arquivo(
                         portarias_filtradas_e_classificadas, 
                         caminho_txt_portarias_designacao_iat, 
-                        caminho_txt_portarias_ferias_iat
+                        "PORTARIA"
                     )
                 else:
                     print(f"Nenhuma portaria de designação ou férias referente ao IAT encontrada para salvar para '{nome_base}'.")
@@ -190,7 +227,8 @@ def ler(caminho_diretorio):
             caminho_txt_paginas_filtradas,
             caminho_txt_paragrafos_filtrados
         ]
-        #remover_arquivos_temporarios(arquivos_para_remover)
+        remover_arquivos_temporarios(arquivos_para_remover)
 
 if __name__ == "__main__":
-    print("Este script é um módulo e deve ser executado através de 'main.py'.")
+    caminho = "S:\\GEAD-DRH\\DIAFI-DRH\\DRH - GESTÃO DE PESSOAS\\APLICATIVOS\\Testes-IAT\\"
+    ler(caminho)

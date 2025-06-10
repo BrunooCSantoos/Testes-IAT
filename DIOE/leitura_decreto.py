@@ -42,11 +42,11 @@ def filtrar_paragrafos_por_palavras_chave(caminho_txt_entrada, caminho_txt_saida
                 is_page_marker = re.match(r'--- Início da Página \d+ ---', paragrafo_limpo)
                 
                 # Critério 2: Verifica se o parágrafo começa com "DECRETO".
-                starts_with_decreto = re.match(r'^DECRETO', paragrafo_limpo, flags=flags)
+                starts_with_decreto = re.match(r'DECRETO', paragrafo_limpo, flags=flags)
                 
                 # Critério 3: Verifica se o parágrafo termina com "Governador do Estado".
                 # Usa \s*$ para considerar espaços em branco opcionais antes do fim da linha.
-                ends_with_governador = re.search(r'Governador do Estado\s*$', paragrafo_limpo, flags=flags)
+                ends_with_governador = re.search(r'Governador do Estado', paragrafo_limpo, flags=flags)
                 
                 # Critério 4: Verifica se o parágrafo contém alguma das palavras-chave fornecidas.
                 # A \b garante que a palavra seja correspondida como uma palavra inteira.
@@ -70,22 +70,21 @@ def filtrar_paragrafos_por_palavras_chave(caminho_txt_entrada, caminho_txt_saida
     # Se a execução for bem-sucedida, retorna True.
     return True
 
-def extrair_decretos(paragrafos, matchcase=False):
+def extrair_decretos(paragrafos, matchcase=True):
     decretos_encontrados = []
     decreto_atual_linhas = []
     capturando = False
     flags = 0 if matchcase else re.IGNORECASE
 
-    # Padrão para identificar o início de um decreto, capturando o número
+    # Padrão para identificar o início de um decreto
     padrao_inicio_decreto = re.compile(
         r'\bDECRETO\b', 
         flags
     )
 
-    # Padrões para identificar o fim de um DECRETO (fim de um bloco administrativo)
-    # Não inclui "Início da Página" como delimitador de fim de documento.
+    # Padrão para identificar o fim de um DECRETO (fim de um bloco administrativo)
     padrao_fim_decreto_bloco = re.compile(
-        r'(?:\bGovernador do Estado\b)',
+        r'\bGovernador do Estado\b',
         flags
     )
 
@@ -100,29 +99,21 @@ def extrair_decretos(paragrafos, matchcase=False):
         if is_inicio_decreto:
             if capturando and decreto_atual_linhas:
                 # Se já estava capturando e encontrou um novo decreto,
-                # finalize o anterior e comece um novo.
+                # finalize o anterior antes de começar um novo.
                 decretos_encontrados.append("\n".join(decreto_atual_linhas).strip())
-                decreto_atual_linhas = [] # Limpa para o novo documento
+            decreto_atual_linhas = [paragrafo] # Começa um novo decreto com o parágrafo atual
             capturando = True
-            decreto_atual_linhas.append(paragrafo)
         elif capturando:
-            # Se estamos capturando e encontramos um delimitador de fim de bloco/seção
-            # que NÃO é um novo decreto (já tratado acima).
-            if is_fim_bloco and not is_inicio_decreto:
-                # Verifica se o delimitador é realmente o fim de um decreto e não parte dele.
-                # Se o parágrafo atual é um delimitador e não é o início de um novo DECRETO/PORTARIA,
-                # então o documento atual termina antes dele.
+            # Se estamos capturando, adicione o parágrafo atual ao decreto
+            decreto_atual_linhas.append(paragrafo)
+            
+            # Se o parágrafo adicionado contém o marcador de fim de bloco,
+            # finalize o decreto atual.
+            if is_fim_bloco:
                 decretos_encontrados.append("\n".join(decreto_atual_linhas).strip())
-                decreto_atual_linhas = []
+                decreto_atual_linhas = [] # Limpa para o próximo decreto
                 capturando = False
                 
-                # Se o parágrafo atual é o início de outro tipo de documento (Portaria)
-                # ou uma nova seção que deve ser ignorada, ele não deve ser adicionado ao decreto atual.
-                # A próxima iteração ou outra função de extração tratará disso.
-                
-            else:
-                decreto_atual_linhas.append(paragrafo)
-
     # Adiciona o último decreto se ainda estiver capturando ao final do loop
     if decreto_atual_linhas:
         decretos_encontrados.append("\n".join(decreto_atual_linhas).strip())
@@ -137,10 +128,10 @@ def filtrar_decretos_de_nomeacao_por_orgao(decretos, matchcase=False):
     # Compila os padrões regex para eficiência
     padrao_inicio_decreto = re.compile(r'DECRETO', flags)
     padrao_nomeacao = re.compile(r'Nomeia|Nomeação', flags)
-    padrao_orgao_seap = re.compile(r'Secretaria\s+de\s+Estado\s+da\s+Administração\s+e\s+da\s+Previdência\s*-\s*SEAP', flags)
+    padrao_orgao_seap = re.compile(r'Secretaria\s+de\s+Estado\s+da\s+Administração\s+e\s+da\s+Previdência|SEAP', flags)
     padrao_orgao_iat = re.compile(r'INSTITUTO\s+ÁGUA\s+E\s+TERRA|\bIAT\b', flags)
     # Novo padrão para verificar a frase "Governador do Estado"
-    padrao_governador_estado = re.compile(r'Governador\s+do\s+Estado', flags)
+    padrao_fim = re.compile(r'Governador\s+do\s+Estado', flags)
     
     # Itera sobre os decretos usando índices
     for i in range(len(decretos)):
@@ -150,19 +141,19 @@ def filtrar_decretos_de_nomeacao_por_orgao(decretos, matchcase=False):
         if not padrao_inicio_decreto.search(current_decreto_conteudo):
             continue # Se não começar com "DECRETO", pula para o próximo decreto
         
-        # Realiza a busca dos padrões na string
+        # Realiza a busca dos padrões na string concatenada da janela
         is_nomeacao = bool(padrao_nomeacao.search(current_decreto_conteudo))
         is_seap = bool(padrao_orgao_seap.search(current_decreto_conteudo))
         is_iat = bool(padrao_orgao_iat.search(current_decreto_conteudo))
-        is_governador_do_estado = bool(padrao_governador_estado.search(current_decreto_conteudo)) # Nova verificação
+        is_governador_do_estado = bool(padrao_fim.search(current_decreto_conteudo)) # Nova verificação
         
         # Se todos os critérios forem atendidos pela janela, adiciona o *decreto atual* à lista filtrada
-        if is_nomeacao and (is_seap or is_iat) or is_governador_do_estado:
+        if is_nomeacao and (is_seap or is_iat) and is_governador_do_estado:
             decretos_filtrados.append(current_decreto_conteudo)
 
     return decretos_filtrados
 
-def salvar_decretos_em_arquivo(decretos, caminho_arquivo, titulo_secao="DECRETO"):
+def salvar_documentos_em_arquivo(decretos, caminho_arquivo, titulo_secao):
     try:
         with open(caminho_arquivo, 'w', encoding='utf-8') as f:
             for i, decreto in enumerate(decretos):
@@ -170,14 +161,9 @@ def salvar_decretos_em_arquivo(decretos, caminho_arquivo, titulo_secao="DECRETO"
                 match_numero = re.search(r'\bDECRETO Nº\s*([\d.]+)', decreto, re.IGNORECASE)
                 numero = match_numero.group(1).strip() if match_numero else "Sem Numero"
                 
-                # Para decretos de ampliação de vagas, podemos adicionar uma identificação extra
-                identificacao_extra = ""
-                if "ampliação de" in decreto.lower() and "vagas" in decreto.lower():
-                    identificacao_extra = " (Ampliação de Vagas)"
-                
-                f.write(f"\n--- INÍCIO DO {titulo_secao} {numero}{identificacao_extra} ---\n")
+                f.write(f"\n--- INÍCIO {titulo_secao} {numero} ---\n")
                 f.write(decreto.strip() + "\n")
-                f.write(f"--- FIM DO {titulo_secao} {numero}{identificacao_extra} ---\n\n")
+                f.write(f"--- FIM {titulo_secao} {numero} ---\n\n")
         print(f"Decretos salvos em: {caminho_arquivo}")
     except Exception as e:
         print(f"Erro ao salvar decretos em '{caminho_arquivo}': {e}")
@@ -199,6 +185,7 @@ def ler(caminho_diretorio):
 
     palavras_chave_gerais = [
         "DECRETO", "Nomeação", "Nomeia", 
+        "Art. 1",
         "Secretaria de Estado da Administração e da Previdência - SEAP", "INSTITUTO ÁGUA E TERRA", "IAT",
     ]
     
@@ -215,13 +202,13 @@ def ler(caminho_diretorio):
                 with open(caminho_txt_paragrafos_filtrados, 'r', encoding='utf-8') as f:
                     texto_paragrafos = f.read().split('\n')
                 
-                matchcase = False
+                matchcase = True
                 todos_decretos = extrair_decretos(texto_paragrafos, matchcase)
                 
                 decretos_nomeacao_orgao_final = filtrar_decretos_de_nomeacao_por_orgao(todos_decretos, matchcase)
 
                 if decretos_nomeacao_orgao_final:
-                    salvar_decretos_em_arquivo(decretos_nomeacao_orgao_final, caminho_txt_decretos_nomeacao_orgao, titulo_secao="DECRETO") # Título mais genérico
+                    salvar_documentos_em_arquivo(decretos_nomeacao_orgao_final, caminho_txt_decretos_nomeacao_orgao, "DECRETO") # Título mais genérico
                 else:
                     print(f"Nenhum decreto de nomeação ou ampliação de vagas referente à SEAP ou IAT encontrado para salvar em '{caminho_txt_decretos_nomeacao_orgao}'.")
             else:
@@ -233,7 +220,7 @@ def ler(caminho_diretorio):
             caminho_txt_paginas_filtradas,
             caminho_txt_paragrafos_filtrados
         ]
-        #remover_arquivos_temporarios(arquivos_para_remover)
+        remover_arquivos_temporarios(arquivos_para_remover)
 
 if __name__ == "__main__":
     caminho = "S:\\GEAD-DRH\\DIAFI-DRH\\DRH - GESTÃO DE PESSOAS\\APLICATIVOS\\Testes-IAT\\"
