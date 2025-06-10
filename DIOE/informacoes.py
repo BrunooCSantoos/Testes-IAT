@@ -49,14 +49,6 @@ def converter_txt_para_pdf(arquivos_txt, caminho_arquivo_pdf):
         print(f"Ocorreu um erro ao gerar o PDF: {e}")
 
 def registro_existe(lista_registros, novo_registro):
-    """
-    Verifica se um registro (dicionário) já existe na lista.
-    Considera um registro como duplicado se a combinação de Tipo_Documento,
-    Numero_Documento, Nome e Situação for idêntica a um registro existente.
-    Isso é crucial para evitar duplicatas quando a mesma portaria/decreto
-    é processada de diferentes arquivos TXT (por exemplo, portaria de designação
-    que também é de férias).
-    """
     chaves_comparacao = ["Tipo_Documento", "Numero_Documento", "Nome", "Situação"]
     
     for registro_existente in lista_registros:
@@ -82,10 +74,10 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
     informacoes_extraidas = []
     
     # Padrão para encontrar os arquivos TXT gerados
-    padrao_arquivos = os.path.join(caminho_diretorio, "EX_*.txt")
-    arquivos_txt = [f for f in os.listdir(caminho_diretorio) if re.match(r"EX_.*\.txt", f)]
+    # `arquivos_txt` agora armazena os nomes dos arquivos encontrados, não o padrão
+    arquivos_txt_nomes = [f for f in os.listdir(caminho_diretorio) if re.match(r"EX_.*\.txt", f)]
 
-    for nome_arquivo in arquivos_txt:
+    for nome_arquivo in arquivos_txt_nomes: # Use arquivos_txt_nomes aqui
         caminho_arquivo = os.path.join(caminho_diretorio, nome_arquivo)
         print(f"Processando arquivo: {nome_arquivo}")
 
@@ -101,19 +93,34 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                 dia, mes, ano = data_iso.split('-')[2], data_iso.split('-')[1], data_iso.split('-')[0]
                 data_publicacao = f"Diário {dia}-{mes}-{ano}"
 
-            # Regex para encontrar todos os blocos de documentos (portarias ou decretos)
-            # Captura o marcador de início, o conteúdo do documento e o marcador de fim.
-            # Usa DOTALL para pegar quebras de linha dentro do conteúdo.
-            documento_blocos = re.findall(
-                r'(--- INÍCIO D(?:A PORTARIA|O DECRETO)[^-\n]*---\s*)(.*?)(?=\s*--- FIM D(?:A PORTARIA|O DECRETO)[^-\n]*---|\Z)',
-                conteudo_completo, re.IGNORECASE | re.DOTALL
+            # --- Correção aqui: Encontrar blocos completos primeiro, depois separar ---
+            # Regex para encontrar o bloco completo do documento (início ao fim)
+            # Isso garante que cada "match" é um bloco completo e não causará o erro de desempacotamento
+            padrao_bloco_completo = re.compile(
+                r'(--- INÍCIO D(?:A PORTARIA|O DECRETO)[^-\n]*---.*?'
+                r'--- FIM D(?:A PORTARIA|O DECRETO)[^-\n]*---)',
+                re.IGNORECASE | re.DOTALL
             )
             
-            if not documento_blocos:
-                print(f"Nenhum bloco de documento encontrado em '{nome_arquivo}'.")
+            blocos_completos = padrao_bloco_completo.findall(conteudo_completo)
+            
+            if not blocos_completos:
+                print(f"Nenhum bloco de documento completo encontrado em '{nome_arquivo}'.")
                 continue # Pula para o próximo arquivo se não encontrar documentos
 
-            for inicio_marcador, conteudo_documento_str in documento_blocos:
+            for bloco_texto in blocos_completos:
+                # Agora, para cada bloco_texto completo, extraia o marcador de início e o conteúdo
+                match_inicio = re.search(r'(--- INÍCIO D(?:A PORTARIA|O DECRETO)[^-\n]*---)', bloco_texto, re.IGNORECASE)
+                match_fim = re.search(r'(--- FIM D(?:A PORTARIA|O DECRETO)[^-\n]*---)', bloco_texto, re.IGNORECASE)
+
+                if not match_inicio or not match_fim:
+                    print(f"Aviso: Bloco encontrado mas marcadores de início/fim ausentes em um trecho.")
+                    continue
+
+                inicio_marcador = match_inicio.group(1)
+                # O conteúdo é tudo entre o marcador de início e o marcador de fim
+                conteudo_documento_str = bloco_texto[len(inicio_marcador):match_fim.start()].strip()
+
                 # Reinicializa as variáveis para cada documento individual
                 nome = "Não Encontrado"
                 rg = "Não Encontrado"
@@ -157,7 +164,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                         
                         # Regex mais flexível para o substituto (nome e RG), permitindo ou não "o/a servidor/servidora"
                         match_substituto = re.search(
-                            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s]+?),\s+RG\s+nº\s*([\d.xX-]+)',
+                            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX-]+)',
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
                         )
                         if match_substituto:
@@ -171,7 +178,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                         
                         # Regex para o titular em férias (focando apenas no nome e RG)
                         match_titular_ferias = re.search(
-                            r'férias\s*do\s*titular\s*([A-Z\u00C0-\u00FF\s]+?)\s*,\s*RG\s+nº\s*[\d.xX-]+',
+                            r'férias\s*do\s*titular\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?)\s*,\s*RG\s+nº\s*[\d.xX-]+',
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
                         )
                         if match_titular_ferias:
@@ -193,7 +200,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                         situacao = "Designação"
                         # Regex para o nome e RG na designação geral (sem ser de férias)
                         match_designacao_generico = re.search(
-                            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s]+?),\s+RG\s+nº\s*([\d.xX-]+)',
+                            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX-]+)',
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
                         )
                         if match_designacao_generico:
@@ -204,7 +211,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                             rg = match_designacao_generico.group(2).strip()
                         else: # Fallback se não encontrar o padrão RG completo
                             match_designacao_sem_rg = re.search(
-                                r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s]+?)\s*(?:,|$)',
+                                r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?)\s*(?:,|$)',
                                 conteudo_documento_str, re.IGNORECASE | re.DOTALL
                             )
                             if match_designacao_sem_rg:
@@ -214,17 +221,19 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                                 # RG permanece "Não Encontrado"
 
                 # --- Extração de Cargo/Função (Regex aprimorada para limitar a captura) ---
+                # Adicionado \s*-\s*[A-Z]{2,5} para o caso de ter siglas no final (ex: DIPAN)
                 match_cargo = re.search(
                     r'para\s+exercer(?:em)?\s+' # "para exercer" ou "para exercerem"
                     r'(?:em\s+comissão\s+o\s+cargo\s+de|o\s+cargo\s+de|a\s+função\s+de)\s*' # Formas de introdução
                     r'(.+?)' # Captura o nome do cargo/função (não-guloso)
-                    r'(?=\s*[,.]?\s*(?:-\s+de|no\s+período|por\s+motivo|Lei|do\s+Quadro|Art\.\s*\d+|Curitiba,|\(assinado\s+eletronicamente\)|\s*DECRETA:\s*|\s*PORTARIA:\s*|--- FIM D(?:A PORTARIA|O DECRETO)|\Z))',
+                    r'(?=\s*[,.]?\s*(?:-\s+de|no\s+período|por\s+motivo|Lei|do\s+Quadro|Art\.\s*\d+|Curitiba,|\(assinado\s+eletronicamente\)|\s*DECRETA:\s*|\s*PORTARIA:\s*|\s*do\s+titular\s+[A-Z\u00C0-\u00FF\s\-\.\']{3,}|--- FIM D(?:A PORTARIA|O DECRETO)|\Z))',
                     # Novos delimitadores de parada no lookahead:
                     # - 'Art.\s*\d+': Início de um novo artigo (ex: Art. 1º)
                     # - 'Curitiba,': Início da linha de assinatura de decretos/portarias
                     # - '\(assinado\s+eletronicamente\)': Marcador de assinatura eletrônica
                     # - '\s*DECRETA:\s*': Se o documento contém múltiplos decretos/portarias, pode ser o início do próximo
                     # - '\s*PORTARIA:\s*': O mesmo para portarias
+                    # - `\s*do\s+titular\s+[A-Z\u00C0-\u00FF\s\-\.\']{3,}`: Para evitar capturar o nome do titular de férias como parte do cargo
                     conteudo_documento_str, re.IGNORECASE | re.DOTALL
                 )
                 
