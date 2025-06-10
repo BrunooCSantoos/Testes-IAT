@@ -196,10 +196,11 @@ def ler(caminho_diretorio):
         nome_base = os.path.basename(arquivo_pdf).replace(".pdf", "")
         caminho_txt_paginas_filtradas = os.path.join(caminho_diretorio, f"{nome_base}_portarias_paginas_filtradas.txt")
         caminho_txt_paragrafos_filtrados = os.path.join(caminho_diretorio, f"{nome_base}_portarias_paragrafos_filtrados.txt")
-        caminho_txt_portarias_designacao_iat = os.path.join(caminho_diretorio, f"EX_{nome_base}_portarias_designacao_IAT.txt")
-        caminho_txt_portarias_ferias_iat = os.path.join(caminho_diretorio, f"EX_{nome_base}_portarias_ferias_IAT.txt")
+        caminho_txt_portarias_designacao_iat = os.path.join(caminho_diretorio, f"{nome_base}_portarias.txt")
 
+        print("Separando páginas...")
         if extrair_texto_pdf(arquivo_pdf, caminho_txt_paginas_filtradas, palavras_chave_gerais):
+            print("Separando parágrafos...")
             if filtrar_paragrafos_por_palavras_chave(caminho_txt_paginas_filtradas, caminho_txt_paragrafos_filtrados, palavras_chave_gerais):
                 with open(caminho_txt_paragrafos_filtrados, 'r', encoding='utf-8') as f:
                     texto_paragrafos = f.read().split('\n')

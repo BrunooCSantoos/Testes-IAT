@@ -193,7 +193,7 @@ def ler(caminho_diretorio):
         nome_base = os.path.basename(arquivo_pdf).replace(".pdf", "")
         caminho_txt_paginas_filtradas = os.path.join(caminho_diretorio, f"{nome_base}_decretos_paginas_filtradas.txt")
         caminho_txt_paragrafos_filtrados = os.path.join(caminho_diretorio, f"{nome_base}_decretos_paragrafos_filtrados.txt")
-        caminho_txt_decretos_nomeacao_orgao = os.path.join(caminho_diretorio, f"EX_{nome_base}_decretos_nomeacao_SEAP_IAT.txt")
+        caminho_txt_decretos_nomeacao_orgao = os.path.join(caminho_diretorio, f"{nome_base}_decretos.txt")
         
         print("Separando páginas...")
         if extrair_texto_pdf(arquivo_pdf, caminho_txt_paginas_filtradas, palavras_chave_gerais):
