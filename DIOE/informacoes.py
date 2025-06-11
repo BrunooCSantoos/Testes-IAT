@@ -97,8 +97,8 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
             # Regex para encontrar o bloco completo do documento (início ao fim)
             # Isso garante que cada "match" é um bloco completo e não causará o erro de desempacotamento
             padrao_bloco_completo = re.compile(
-                r'(--- INÍCIO D(?:A PORTARIA|O DECRETO)[^-\n]*---.*?'
-                r'--- FIM D(?:A PORTARIA|O DECRETO)[^-\n]*---)',
+                r'(--- INÍCIO (?:PORTARIA|DECRETO)[^-\n]*---.*?'
+                r'--- FIM (?:PORTARIA|DECRETO)[^-\n]*---)',
                 re.IGNORECASE | re.DOTALL
             )
             
@@ -110,8 +110,8 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
 
             for bloco_texto in blocos_completos:
                 # Agora, para cada bloco_texto completo, extraia o marcador de início e o conteúdo
-                match_inicio = re.search(r'(--- INÍCIO D(?:A PORTARIA|O DECRETO)[^-\n]*---)', bloco_texto, re.IGNORECASE)
-                match_fim = re.search(r'(--- FIM D(?:A PORTARIA|O DECRETO)[^-\n]*---)', bloco_texto, re.IGNORECASE)
+                match_inicio = re.search(r'(--- INÍCIO (?:PORTARIA|DECRETO)[^-\n]*---)', bloco_texto, re.IGNORECASE)
+                match_fim = re.search(r'(--- FIM (?:PORTARIA|DECRETO)[^-\n]*---)', bloco_texto, re.IGNORECASE)
 
                 if not match_inicio or not match_fim:
                     print(f"Aviso: Bloco encontrado mas marcadores de início/fim ausentes em um trecho.")
@@ -324,3 +324,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
         print(f"Informações formatadas salvas para PDF em: {caminho_txt_formatado}")
     else:
         print("Nenhuma informação para formatar e salvar em TXT para PDF.")
+
+if __name__ == "__main__":
+    caminho_diretorio = os.getcwd()
+    extrair_e_salvar_informacoes_dioe(caminho_diretorio)
