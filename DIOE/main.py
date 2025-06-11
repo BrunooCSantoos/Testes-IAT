@@ -9,10 +9,10 @@ caminho_diretorio = os.getcwd()
 
 def iniciar():
     # Baixa e faz a leitura do diário, gerando os resultados em txt.
-    baixar_e_ler_dioe.start(caminho_diretorio)
+    numero_diario = baixar_e_ler_dioe.start(caminho_diretorio)
 
     # NOVO PASSO: Extrair informações e salvar em CSV e TXT formatado
-    extrair_e_salvar_informacoes_dioe(caminho_diretorio)
+    extrair_e_salvar_informacoes_dioe(caminho_diretorio, numero_diario)
     
     # Adiciona o arquivo TXT formatado para a conversão em PDF
     caminho_txt_formatado_para_pdf = os.path.join(caminho_diretorio, "informacoes_formatadas_para_pdf.txt")

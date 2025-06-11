@@ -117,13 +117,17 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
         time.sleep(2) # Espera a página carregar
         
         data_diario = extrair_data_diario(driver)
+
+        xpath_numero_diario = "/html/body/table/tbody/tr/td[4]/table[2]/tbody/tr/td/table/tbody/tr[3]/td/table/tbody/tr/td/table[3]/tbody/tr[3]/td[5]"
+        numero_diario = driver.find_element(By.XPATH, xpath_numero_diario).text
+        
         if not data_diario:
             print("Não foi possível determinar a data do diário. Prosseguindo com o download sem verificação de data.")
         else:
             datas_baixadas = obter_datas_baixadas(caminho_arquivo_csv)
             if data_diario in datas_baixadas:
                 print(f"Diário da data {data_diario} já foi baixado. Pulando o download.")
-                return 
+                return numero_diario
 
         # Clica no link inicial para abrir a consulta
         xpath_inicial = "/html/body/table/tbody/tr/td[4]/table[2]/tbody/tr/td/table/tbody/tr[3]/td/table/tbody/tr/td/table[3]/tbody/tr[3]/td[2]/a"
@@ -170,14 +174,15 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
     finally:
         driver.quit()
         print("Navegador fechado.")
-
+        return numero_diario
+    
 def start(caminho_diretorio):
     os.makedirs(caminho_diretorio, exist_ok=True)
     nome_arquivo_csv = "datas_dioe_baixadas.csv"
     caminho_arquivo_csv = os.path.join(caminho_diretorio, nome_arquivo_csv)
     
     # Baixa o DIOE
-    baixar_dioe(caminho_diretorio, caminho_arquivo_csv)
+    numero_diario = baixar_dioe(caminho_diretorio, caminho_arquivo_csv)
     
     # Realiza a leitura das portarias e decretos
     leitura_portaria.ler(caminho_diretorio)
@@ -192,6 +197,9 @@ def start(caminho_diretorio):
         print(f"\nArquivo {arquivo_pdf} removido.")
     
     print("\nConcluído\n")
+
+    return numero_diario
     
 if __name__ == "__main__":
-    start()
+    caminho_diretorio = os.getcwd()
+    start(caminho_diretorio)

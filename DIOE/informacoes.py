@@ -70,7 +70,7 @@ def registro_existe(lista_registros, novo_registro):
             return True
     return False
 
-def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
+def extrair_e_salvar_informacoes_dioe(caminho_diretorio, numero_diario="N/A"):
     print("Iniciando extração de informações dos arquivos TXT...")
     informacoes_extraidas = []
     
@@ -264,6 +264,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                     "Substituto_Nome": clean_text(substituto_nome),
                     "Cargo": clean_text(cargo),
                     "Orgao_Lotacao": clean_text(orgao_lotacao),
+                    "Numero_Diario": numero_diario,
                     "Diario_Fonte": clean_text(data_publicacao)
                 }
 
@@ -287,7 +288,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
     
     if informacoes_extraidas:
         with open(caminho_csv, 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ["Tipo_Documento", "Numero_Documento", "Nome", "RG", "Situação", "Cargo", "Orgao_Lotacao", "Diario_Fonte", "Substituto_Nome", "Titular_Ferias_Nome", "Periodo_Ferias"]
+            fieldnames = ["Tipo_Documento", "Numero_Documento", "Situação", "Nome", "RG", "Titular_Ferias_Nome", "Periodo_Ferias", "Substituto_Nome", "Cargo", "Orgao_Lotacao", "Numero_Diario", "Diario_Fonte"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             
             writer.writeheader()
@@ -318,6 +319,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                     txtfile.write(f"  Substituto: {info['Substituto_Nome']}\n")
                 txtfile.write(f"  Cargo: {info['Cargo']}\n")
                 txtfile.write(f"  Órgão/Lotação: {info['Orgao_Lotacao']}\n")
+                txtfile.write(f"  Número Diário: {info['Numero_Diario']}\n")
                 txtfile.write(f"  Diário Fonte: {info['Diario_Fonte']}\n")
                 txtfile.write("-" * 40 + "\n\n")
         print(f"Informações formatadas salvas para PDF em: {caminho_txt_formatado}")
