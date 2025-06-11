@@ -1,0 +1,61 @@
+--- INFORMAÇÕES EXTRAÍDAS DO DIÁRIO OFICIAL ---
+
+Registro 1:
+  Tipo Documento: DECRETO
+  Número Documento: 8.208
+  Nome: Verificar Anexo (Nomes em lista separada)
+  RG: Não Encontrado
+  Situação: Nomeação
+  Cargo: Agente Proﬁ ssional, nas funções de Assistente Social e Psicólogo
+  Órgão/Lotação: Secretaria de Estado da Administração e da Previdência – SEAP
+  Diário Fonte: Diário 06-12-2024
+----------------------------------------
+
+Registro 2:
+  Tipo Documento: DECRETO
+  Número Documento: 8.210
+  Nome: Verificar Anexo (Nomes em lista separada)
+  RG: Não Encontrado
+  Situação: Nomeação
+  Cargo: Agente Proﬁ ssional, nas suas respectivas funções
+  Órgão/Lotação: Secretaria de Estado da Administração e da Previdência – SEAP
+  Diário Fonte: Diário 06-12-2024
+----------------------------------------
+
+Registro 3:
+  Tipo Documento: DECRETO
+  Número Documento: 8.213
+  Nome: Verificar Anexo (Nomes em lista separada)
+  RG: Não Encontrado
+  Situação: Nomeação
+  Cargo: Agente Proﬁ ssional, na função de Psicólogo
+  Órgão/Lotação: Secretaria de Estado da Administração e da Previdência – SEAP
+  Diário Fonte: Diário 06-12-2024
+----------------------------------------
+
+Registro 4:
+  Tipo Documento: PORTARIA
+  Número Documento: 630
+  Nome: Saonara do Rocio Porto
+  RG: 3.xxx.802
+  Situação: Designação (Substituição por Férias)
+  Cargo: Gerente Regional de Bacia Hidrográfica – Escritório de Guarapuava - ERGUA
+  Órgão/Lotação: Instituto Água e Terra - IAT
+  Substituto: Saonara do Rocio Porto
+  Titular de Férias: Marco Antonio Silva
+  Diário Fonte: Diário 06-12-2024
+----------------------------------------
+
+Registro 5:
+  Tipo Documento: PORTARIA
+  Número Documento: 646
+  Nome: Patrícia  Accioly Calderari da Rosa
+  RG: 6.xxx.280-
+  Situação: Designação (Substituição por Férias)
+  Cargo: Diretor a do Patrimônio Natural – DIPAN
+  Órgão/Lotação: Instituto Água e Terra - IAT
+  Substituto: Patrícia  Accioly Calderari da Rosa
+  Titular de Férias: Rafael Andreguetto
+  Diário Fonte: Diário 06-12-2024
+----------------------------------------
+

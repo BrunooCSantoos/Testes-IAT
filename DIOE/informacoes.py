@@ -164,7 +164,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                         
                         # Regex mais flexível para o substituto (nome e RG), permitindo ou não "o/a servidor/servidora"
                         match_substituto = re.search(
-                            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX-]+)',
+                            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX\s-]+)',
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
                         )
                         if match_substituto:
@@ -178,7 +178,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                         
                         # Regex para o titular em férias (focando apenas no nome e RG)
                         match_titular_ferias = re.search(
-                            r'férias\s*do\s*titular\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?)\s*,\s*RG\s+nº\s*[\d.xX-]+',
+                            r'férias\s*do\s*titular\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?)\s*,\s*RG\s+nº\s*([\d.xX\s-]+)',
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
                         )
                         if match_titular_ferias:
@@ -200,7 +200,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                         situacao = "Designação"
                         # Regex para o nome e RG na designação geral (sem ser de férias)
                         match_designacao_generico = re.search(
-                            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX-]+)',
+                            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX\s-]+)',
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
                         )
                         if match_designacao_generico:
