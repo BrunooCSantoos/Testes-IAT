@@ -81,11 +81,25 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio, numero_diario="N/A"):
     # --- NEW: Aggressive cleaning function ---
     def clean_text(text):
         if text is None:
-            return "Não Encontrado" 
-        # Replace ligatures (e.g., ﬁ -> fi, ﬀ -> ff)
+            return "Não Encontrado"
+
+        text = str(text) 
         text = text.replace('ﬁ', 'fi').replace('ﬀ', 'ff')
-        # Replace multiple whitespaces (including newlines) with a single space
+
+        meses_pt = [
+            "janeiro", "fevereiro", "março", "abril", "maio", "junho", 
+            "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
+        ]
+        
+        for mes in meses_pt:
+            pattern = r'\b' + r'\s*'.join(list(mes)) + r'\b'
+            text = re.sub(pattern, mes, text, flags=re.IGNORECASE)
+
+        text = re.sub(r'\s*-\s*', ' - ', text) 
+        text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)
         text = re.sub(r'\s+', ' ', text).strip()
+        text = text.replace(' - ', '-') 
+
         return text
 
     for nome_arquivo in arquivos_txt_nomes: 
@@ -117,7 +131,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio, numero_diario="N/A"):
             
             if not blocos_completos:
                 print(f"Nenhum bloco de documento completo encontrado em '{nome_arquivo}'.")
-                continue 
+                continue
 
             for bloco_texto in blocos_completos:
                 # Agora, para cada bloco_texto completo, extraia o marcador de início e o conteúdo
