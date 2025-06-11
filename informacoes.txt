@@ -18,7 +18,7 @@ def converter_txt_para_pdf(arquivos_txt, caminho_arquivo_pdf):
     for arquivo_txt in arquivos_txt:
         if not os.path.exists(arquivo_txt):
             print(f"Erro: O arquivo TXT '{arquivo_txt}' não foi encontrado e será ignorado.")
-            continue 
+            continue # Pula para o próximo arquivo se este não for encontrado
 
         try:
             # Abre o arquivo TXT para leitura
@@ -29,18 +29,17 @@ def converter_txt_para_pdf(arquivos_txt, caminho_arquivo_pdf):
             arquivo.append(Paragraph(f"--- Conteúdo de: {os.path.basename(arquivo_txt)} ---", estilo['h2']))
             arquivo.append(Spacer(1, 0.2 * 10))
 
-            # Divide o texto em parágrafos.
-            # Cada linha do TXT se torna um parágrafo no PDF.
+            # Divide o texto em parágrafos. Cada linha do TXT se torna um parágrafo no PDF.
             paragrafos = texto.split('\n')
             
             for p in paragrafos:
                 if p.strip():  # Adiciona apenas parágrafos que não são vazios
                     arquivo.append(Paragraph(p.strip(), estilo['Normal']))
-                arquivo.append(Spacer(1, 0.2 * 10)) 
-            
+                arquivo.append(Spacer(1, 0.2 * 10)) # Espaço após cada parágrafo
+
         except Exception as e:
             print(f"Ocorreu um erro ao processar o arquivo '{arquivo_txt}': {e}")
-            continue 
+            continue # Continua para o próximo arquivo mesmo que um erro ocorra
 
     try:
         # Constrói o PDF com base em *todos* os elementos coletados
@@ -78,17 +77,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
     # `arquivos_txt` agora armazena os nomes dos arquivos encontrados, não o padrão
     arquivos_txt_nomes = [f for f in os.listdir(caminho_diretorio) if re.match(r"EX_.*\.txt", f)]
 
-    # --- NEW: Aggressive cleaning function ---
-    def clean_text(text):
-        if text is None:
-            return "Não Encontrado" 
-        # Replace ligatures (e.g., ﬁ -> fi, ﬀ -> ff)
-        text = text.replace('ﬁ', 'fi').replace('ﬀ', 'ff')
-        # Replace multiple whitespaces (including newlines) with a single space
-        text = re.sub(r'\s+', ' ', text).strip()
-        return text
-
-    for nome_arquivo in arquivos_txt_nomes: 
+    for nome_arquivo in arquivos_txt_nomes: # Use arquivos_txt_nomes aqui
         caminho_arquivo = os.path.join(caminho_diretorio, nome_arquivo)
         print(f"Processando arquivo: {nome_arquivo}")
 
@@ -117,7 +106,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
             
             if not blocos_completos:
                 print(f"Nenhum bloco de documento completo encontrado em '{nome_arquivo}'.")
-                continue 
+                continue # Pula para o próximo arquivo se não encontrar documentos
 
             for bloco_texto in blocos_completos:
                 # Agora, para cada bloco_texto completo, extraia o marcador de início e o conteúdo
@@ -173,8 +162,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                     if re.search(r'férias', conteudo_documento_str, re.IGNORECASE):
                         situacao = "Designação (Substituição por Férias)"
                         
-                        # Regex mais flexível para o substituto (nome e RG),
-                        # permitindo ou não "o/a servidor/servidora"
+                        # Regex mais flexível para o substituto (nome e RG), permitindo ou não "o/a servidor/servidora"
                         match_substituto = re.search(
                             r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX\s-]+)',
                             conteudo_documento_str, re.IGNORECASE | re.DOTALL
@@ -184,6 +172,7 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                             # Remove "o", "a", "servidor", "servidora" se estiverem colados ao nome
                             substituto_nome = re.sub(r'^(?:o|a)\s+', '', substituto_nome_raw, flags=re.IGNORECASE).strip()
                             substituto_nome = re.sub(r'^(?:servidor|servidora)\s+', '', substituto_nome, flags=re.IGNORECASE).strip()
+                            
                             nome = substituto_nome # O campo 'Nome' será o do substituto
                             rg = match_substituto.group(2).strip()
                         
@@ -232,18 +221,21 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                                 # RG permanece "Não Encontrado"
 
                 match_cargo = re.search(
-                    r'para\s+exercer(?:em)?\s+' 
-                    r'(?:em\s+comissão\s+o\s+cargo\s+de|o\s+cargo\s+de|a\s+função\s+de)\s*' 
-                    r'(.+?)' 
+                    r'para\s+exercer(?:em)?\s+' # "para exercer" ou "para exercerem"
+                    r'(?:em\s+comissão\s+o\s+cargo\s+de|o\s+cargo\s+de|a\s+função\s+de)\s*' # Formas de introdução
+                    r'(.+?)' # Captura o nome do cargo/função (não-guloso)
                     r'(?=\s*[,.]?\s*(?:-\s+de|no\s+período|por\s+motivo|Lei|do\s+Quadro|Art\.\s*\d+|Curitiba,|\(assinado\s+eletronicamente\)|\s*DECRETA:\s*|\s*PORTARIA:\s*|\s*do\s+titular\s+[A-Z\u00C0-\u00FF\s\-\.\']{3,}|--- FIM D(?:A PORTARIA|O DECRETO)|\Z))',
                     conteudo_documento_str, re.IGNORECASE | re.DOTALL
                 )
                 
                 if match_cargo:
                     cargo = match_cargo.group(1).strip()
+                    # Limpeza adicional para remover texto irrelevante que pode ser capturado
                     cargo = re.sub(r'\s+do Quadro Próprio do Poder Executivo – QPPE', '', cargo, flags=re.IGNORECASE).strip()
                     cargo = re.sub(r'\s+do Estado do Paraná', '', cargo, flags=re.IGNORECASE).strip()
+                    # Ajuste para "Escritório de Guarapuava - ERGUA" que pode vir com espaços estranhos
                     cargo = re.sub(r'–\s*Escritório\s*de\s*Guarapuava\s*-\s*ERGUA', '– Escritório de Guarapuava - ERGUA', cargo, flags=re.IGNORECASE).strip()
+                    # Remover quebras de linha e espaços extras, normalizando para um único espaço
                     cargo = ' '.join(cargo.split())
                 else:
                     cargo = "Não Encontrado"
@@ -252,7 +244,15 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                 if situacao == "Nomeação" and nome == "Não Encontrado":
                     nome = "Verificar Anexo (Nomes em lista separada)"
                 
-                # Apply clean_text to all values before creating the dictionary
+                def clean_text(text):
+                    if text is None:
+                        return "Não Encontrado" # Or any other default for None
+                    # Replace ligatures (e.g., ﬁ -> fi, ﬀ -> ff)
+                    text = text.replace('ﬁ', 'fi').replace('ﬀ', 'ff')
+                    # Replace multiple whitespaces (including newlines) with a single space
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    return text
+                
                 novo_registro = {
                     "Tipo_Documento": clean_text(tipo_documento),
                     "Numero_Documento": clean_text(numero_documento),
@@ -267,10 +267,12 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio):
                     "Diario_Fonte": clean_text(data_publicacao)
                 }
 
+
                 # Prevenção de duplicidade
                 if not registro_existe(informacoes_extraidas, novo_registro):
                     informacoes_extraidas.append(novo_registro)
                 else:
+                    # Imprime qual registro duplicado foi ignorado e por quê
                     print(f"Registro duplicado detectado e ignorado: "
                           f"Tipo: {novo_registro['Tipo_Documento']}, "
                           f"Número: {novo_registro['Numero_Documento']}, "
