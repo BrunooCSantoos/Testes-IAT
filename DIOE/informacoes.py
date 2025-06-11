@@ -101,115 +101,17 @@ def extrair_data_do_nome_arquivo(nome_arquivo):
         return f"Diário {dia}-{mes}-{ano}"
     return "Não Identificada"
 
-def analisar_bloco_documento(bloco_texto, numero_diario="N/A"):
-    # Reinicializa as variáveis para cada documento individual
-    nome = "Não Encontrado"
-    rg = "Não Encontrado"
-    situacao = "Não Identificada"
-    cargo = "Não Encontrado"
-    orgao_lotacao = "Não Encontrado"
-    tipo_documento = "Não Encontrado"
-    numero_documento = "Não Encontrado"
-    nome_substituto = "N/A"
-    nome_titular_ferias = "N/A"
-    periodo_ferias = "N/A"
-
-    match_inicio = re.search(r'(--- INÍCIO (?:PORTARIA|DECRETO)[^-\n]*---)', bloco_texto, re.IGNORECASE)
-    match_fim = re.search(r'(--- FIM (?:PORTARIA|DECRETO)[^-\n]*---)', bloco_texto, re.IGNORECASE)
-
-    if not match_inicio or not match_fim:
-        print(f"Aviso: Bloco encontrado mas marcadores de início/fim ausentes em um trecho.")
-        return None
-
-    marcador_inicio = match_inicio.group(1)
-    conteudo_documento_str = bloco_texto[len(marcador_inicio):match_fim.start()].strip()
-
-    # Tentar identificar o Órgão/Lotação primeiro, pois é um bom indicador
+def extrair_orgao_lotacao(conteudo_documento_str):
     match_orgao_iat = re.search(r'INSTITUTO ÁGUA E TERRA', conteudo_documento_str, re.IGNORECASE)
     match_orgao_seap = re.search(r'Secretaria de Estado da Administração e da Previdência – SEAP', conteudo_documento_str, re.IGNORECASE)
     
     if match_orgao_iat:
-        orgao_lotacao = "Instituto Água e Terra - IAT"
+        return "Instituto Água e Terra - IAT"
     elif match_orgao_seap:
-        orgao_lotacao = "Secretaria de Estado da Administração e da Previdência – SEAP"
-    
-    # --- Extração de Tipo e Número do Documento ---
-    match_decreto = re.search(r'DECRETO Nº\s*([\d.]+)', conteudo_documento_str, re.IGNORECASE)
-    match_portaria = re.search(r'PORTARIA Nº\s*([\d.]+)', conteudo_documento_str, re.IGNORECASE)
+        return "Secretaria de Estado da Administração e da Previdência – SEAP"
+    return "Não Encontrado"
 
-    if match_decreto:
-        tipo_documento = "DECRETO"
-        numero_documento = match_decreto.group(1).strip()
-    elif match_portaria:
-        tipo_documento = "PORTARIA"
-        numero_documento = match_portaria.group(1).strip()
-
-    # --- Extração de Situação e detalhes de Férias/Designação ---
-    if "DECRETO Nº" in conteudo_documento_str and ("Nomeia, em virtude de habilitação em concurso público" in conteudo_documento_str or "Nomeação de servidores para exercerem cargos" in conteudo_documento_str):
-        situacao = "Nomeação"
-    elif "PORTARIA Nº" in conteudo_documento_str:
-        # Priorizar a detecção de "Designação (Substituição por Férias)"
-        if re.search(r'férias', conteudo_documento_str, re.IGNORECASE):
-            situacao = "Designação (Substituição por Férias)"
-            
-            # Regex mais flexível para o substituto (nome e RG),
-            # permitindo ou não "o/a servidor/servidora"
-            match_substituto = re.search(
-                r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX\s-]+)',
-                conteudo_documento_str, re.IGNORECASE | re.DOTALL
-            )
-            if match_substituto:
-                nome_substituto_raw = match_substituto.group(1).strip()
-                # Remove "o", "a", "servidor", "servidora" se estiverem colados ao nome
-                nome_substituto = re.sub(r'^(?:o|a)\s+', '', nome_substituto_raw, flags=re.IGNORECASE).strip()
-                nome_substituto = re.sub(r'^(?:servidor|servidora)\s+', '', nome_substituto, flags=re.IGNORECASE).strip()
-                nome = nome_substituto # O campo 'Nome' será o do substituto
-                rg = match_substituto.group(2).strip()
-            
-            # Regex para o titular em férias (focando apenas no nome e RG)
-            match_titular_ferias = re.search(
-                r'férias\s*do\s*titular\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?)\s*,\s*RG\s+nº\s*([\d.xX\s-]+)',
-                conteudo_documento_str, re.IGNORECASE | re.DOTALL
-            )
-            if match_titular_ferias:
-                nome_titular_ferias_raw = match_titular_ferias.group(1).strip()
-                # Limpeza similar para o nome do titular de férias
-                nome_titular_ferias = re.sub(r'^(?:o|a)\s+', '', nome_titular_ferias_raw, flags=re.IGNORECASE).strip()
-                nome_titular_ferias = re.sub(r'^(?:servidor|servidora)\s+', '', nome_titular_ferias, flags=re.IGNORECASE).strip()
-
-            # Regex para o período de férias (buscando o período independentemente)
-            match_periodo_ferias = re.search(
-                r'(?:no\s+)?período\s+de\s+(.*?)(?=\s*(?:,|\.|Art\.|--- FIM))',
-                conteudo_documento_str, re.IGNORECASE | re.DOTALL
-            )
-            if match_periodo_ferias:
-                periodo_ferias = match_periodo_ferias.group(1).strip()
-
-        # Se não for substituição por férias, verifica a designação geral
-        elif re.search(r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?', conteudo_documento_str, re.IGNORECASE):
-            situacao = "Designação"
-            # Regex para o nome e RG na designação geral (sem ser de férias)
-            match_designacao_generico = re.search(
-                r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX\s-]+)',
-                conteudo_documento_str, re.IGNORECASE | re.DOTALL
-            )
-            if match_designacao_generico:
-                nome_raw = match_designacao_generico.group(1).strip()
-                # Remove "o", "a", "servidor", "servidora" se estiverem colados ao nome
-                nome = re.sub(r'^(?:o|a)\s+', '', nome_raw, flags=re.IGNORECASE).strip()
-                nome = re.sub(r'^(?:servidor|servidora)\s+', '', nome, flags=re.IGNORECASE).strip()
-                rg = match_designacao_generico.group(2).strip()
-            else: # Fallback se não encontrar o padrão RG completo
-                match_designacao_sem_rg = re.search(
-                    r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?)\s*(?:,|$)',
-                    conteudo_documento_str, re.IGNORECASE | re.DOTALL
-                )
-                if match_designacao_sem_rg:
-                    nome_raw = match_designacao_sem_rg.group(1).strip()
-                    nome = re.sub(r'^(?:o|a)\s+', '', nome_raw, flags=re.IGNORECASE).strip()
-                    nome = re.sub(r'^(?:servidor|servidora)\s+', '', nome, flags=re.IGNORECASE).strip()
-                    # RG permanece "Não Encontrado"
-
+def extrair_cargo(conteudo_documento_str):
     match_cargo = re.search(
         r'para\s+exercer(?:em)?\s+' 
         r'(?:em\s+comissão\s+o\s+cargo\s+de|o\s+cargo\s+de|a\s+função\s+de)\s*' 
@@ -224,27 +126,147 @@ def analisar_bloco_documento(bloco_texto, numero_diario="N/A"):
         cargo = re.sub(r'\s+do Estado do Paraná', '', cargo, flags=re.IGNORECASE).strip()
         cargo = re.sub(r'–\s*Escritório\s*de\s*Guarapuava\s*-\s*ERGUA', '– Escritório de Guarapuava - ERGUA', cargo, flags=re.IGNORECASE).strip()
         cargo = ' '.join(cargo.split())
-    else:
-        cargo = "Não Encontrado"
+        return cargo
+    return "Não Encontrado"
 
-    # Para Decretos de Nomeação, onde os nomes podem estar em anexo
-    if situacao == "Nomeação" and nome == "Não Encontrado":
-        nome = "Verificar Anexo (Nomes em lista separada)"
-    
-    return {
-        "Tipo_Documento": limpar_texto(tipo_documento),
-        "Numero_Documento": limpar_texto(numero_documento),
-        "Situação": limpar_texto(situacao),
-        "Nome": limpar_texto(nome),
-        "RG": limpar_texto(rg),
-        "Titular_Ferias_Nome": limpar_texto(nome_titular_ferias),
-        "Periodo_Ferias": limpar_texto(periodo_ferias),
-        "Substituto_Nome": limpar_texto(nome_substituto),
-        "Cargo": limpar_texto(cargo),
-        "Orgao_Lotacao": limpar_texto(orgao_lotacao),
+def analisar_bloco_decreto(conteudo_documento_str, numero_diario="N/A"):
+    registro = {
+        "Tipo_Documento": "DECRETO",
+        "Numero_Documento": "Não Encontrado",
+        "Situação": "Não Identificada",
+        "Nome": "Não Encontrado",
+        "RG": "Não Encontrado",
+        "Titular_Ferias_Nome": "N/A",
+        "Periodo_Ferias": "N/A",
+        "Substituto_Nome": "N/A",
+        "Cargo": "Não Encontrado",
+        "Orgao_Lotacao": "Não Encontrado",
         "Numero_Diario": numero_diario,
-        "Diario_Fonte": "Não Identificada" # Isso será atualizado posteriormente com a data do nome do arquivo
+        "Diario_Fonte": "Não Identificada"
     }
+
+    match_decreto = re.search(r'DECRETO Nº\s*([\d.]+)', conteudo_documento_str, re.IGNORECASE)
+    if match_decreto:
+        registro["Numero_Documento"] = match_decreto.group(1).strip()
+
+    if ("Nomeia, em virtude de habilitação em concurso público" in conteudo_documento_str or 
+        "Nomeação de servidores para exercerem cargos" in conteudo_documento_str):
+        registro["Situação"] = "Nomeação"
+        # Para Decretos de Nomeação, onde os nomes podem estar em anexo
+        registro["Nome"] = "Verificar Anexo (Nomes em lista separada)"
+    
+    registro["Cargo"] = extrair_cargo(conteudo_documento_str)
+    registro["Orgao_Lotacao"] = extrair_orgao_lotacao(conteudo_documento_str)
+
+    return {k: limpar_texto(v) for k, v in registro.items()}
+
+
+def analisar_bloco_portaria(conteudo_documento_str, numero_diario="N/A"):
+    registro = {
+        "Tipo_Documento": "PORTARIA",
+        "Numero_Documento": "Não Encontrado",
+        "Situação": "Não Identificada",
+        "Nome": "Não Encontrado",
+        "RG": "Não Encontrado",
+        "Titular_Ferias_Nome": "N/A",
+        "Periodo_Ferias": "N/A",
+        "Substituto_Nome": "N/A",
+        "Cargo": "Não Encontrado",
+        "Orgao_Lotacao": "Não Encontrado",
+        "Numero_Diario": numero_diario,
+        "Diario_Fonte": "Não Identificada"
+    }
+
+    match_portaria = re.search(r'PORTARIA Nº\s*([\d.]+)', conteudo_documento_str, re.IGNORECASE)
+    if match_portaria:
+        registro["Numero_Documento"] = match_portaria.group(1).strip()
+
+    if re.search(r'férias', conteudo_documento_str, re.IGNORECASE):
+        registro["Situação"] = "Designação (Substituição por Férias)"
+        
+        # Regex mais flexível para o substituto (nome e RG),
+        # permitindo ou não "o/a servidor/servidora"
+        match_substituto = re.search(
+            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX\s-]+)',
+            conteudo_documento_str, re.IGNORECASE | re.DOTALL
+        )
+        if match_substituto:
+            nome_substituto_raw = match_substituto.group(1).strip()
+            # Remove "o", "a", "servidor", "servidora" se estiverem colados ao nome
+            registro["Substituto_Nome"] = re.sub(r'^(?:o|a)\s+', '', nome_substituto_raw, flags=re.IGNORECASE).strip()
+            registro["Substituto_Nome"] = re.sub(r'^(?:servidor|servidora)\s+', '', registro["Substituto_Nome"], flags=re.IGNORECASE).strip()
+            registro["Nome"] = registro["Substituto_Nome"] # O campo 'Nome' será o do substituto
+            registro["RG"] = match_substituto.group(2).strip()
+        
+        # Regex para o titular em férias (focando apenas no nome e RG)
+        match_titular_ferias = re.search(
+            r'férias\s*do\s*titular\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?)\s*,\s*RG\s+nº\s*([\d.xX\s-]+)',
+            conteudo_documento_str, re.IGNORECASE | re.DOTALL
+        )
+        if match_titular_ferias:
+            nome_titular_ferias_raw = match_titular_ferias.group(1).strip()
+            # Limpeza similar para o nome do titular de férias
+            registro["Titular_Ferias_Nome"] = re.sub(r'^(?:o|a)\s+', '', nome_titular_ferias_raw, flags=re.IGNORECASE).strip()
+            registro["Titular_Ferias_Nome"] = re.sub(r'^(?:servidor|servidora)\s+', '', registro["Titular_Ferias_Nome"], flags=re.IGNORECASE).strip()
+
+        # Regex para o período de férias (buscando o período independentemente)
+        match_periodo_ferias = re.search(
+            r'(?:no\s+)?período\s+de\s+(.*?)(?=\s*(?:,|\.|Art\.|--- FIM))',
+            conteudo_documento_str, re.IGNORECASE | re.DOTALL
+        )
+        if match_periodo_ferias:
+            registro["Periodo_Ferias"] = match_periodo_ferias.group(1).strip()
+
+    # Se não for substituição por férias, verifica a designação geral
+    elif re.search(r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?', conteudo_documento_str, re.IGNORECASE):
+        registro["Situação"] = "Designação"
+        # Regex para o nome e RG na designação geral (sem ser de férias)
+        match_designacao_generico = re.search(
+            r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?),\s+RG\s+nº\s*([\d.xX\s-]+)',
+            conteudo_documento_str, re.IGNORECASE | re.DOTALL
+        )
+        if match_designacao_generico:
+            nome_raw = match_designacao_generico.group(1).strip()
+            # Remove "o", "a", "servidor", "servidora" se estiverem colados ao nome
+            registro["Nome"] = re.sub(r'^(?:o|a)\s+', '', nome_raw, flags=re.IGNORECASE).strip()
+            registro["Nome"] = re.sub(r'^(?:servidor|servidora)\s+', '', registro["Nome"], flags=re.IGNORECASE).strip()
+            registro["RG"] = match_designacao_generico.group(2).strip()
+        else: # Fallback se não encontrar o padrão RG completo
+            match_designacao_sem_rg = re.search(
+                r'Designar\s+(?:o|a)?\s*(?:servidor|servidora)?\s*([A-Z\u00C0-\u00FF\s\-\.\']{3,}?)\s*(?:,|$)',
+                conteudo_documento_str, re.IGNORECASE | re.DOTALL
+            )
+            if match_designacao_sem_rg:
+                nome_raw = match_designacao_sem_rg.group(1).strip()
+                registro["Nome"] = re.sub(r'^(?:o|a)\s+', '', nome_raw, flags=re.IGNORECASE).strip()
+                registro["Nome"] = re.sub(r'^(?:servidor|servidora)\s+', '', registro["Nome"], flags=re.IGNORECASE).strip()
+                # RG permanece "Não Encontrado"
+
+    registro["Cargo"] = extrair_cargo(conteudo_documento_str)
+    registro["Orgao_Lotacao"] = extrair_orgao_lotacao(conteudo_documento_str)
+
+    return {k: limpar_texto(v) for k, v in registro.items()}
+
+
+def analisar_bloco_documento(bloco_texto, numero_diario="N/A"):
+    match_inicio = re.search(r'--- INÍCIO (PORTARIA|DECRETO)[^-\n]*---', bloco_texto, re.IGNORECASE)
+    match_fim = re.search(r'--- FIM (?:PORTARIA|DECRETO)[^-\n]*---', bloco_texto, re.IGNORECASE)
+
+    if not match_inicio or not match_fim:
+        print(f"Aviso: Bloco encontrado mas marcadores de início/fim ausentes em um trecho.")
+        return None
+
+    tipo_documento_identificado = match_inicio.group(1).upper()
+    marcador_inicio = match_inicio.group(0) # Pega o marcador completo
+    conteudo_documento_str = bloco_texto[len(marcador_inicio):match_fim.start()].strip()
+
+    if tipo_documento_identificado == "DECRETO":
+        return analisar_bloco_decreto(conteudo_documento_str, numero_diario)
+    elif tipo_documento_identificado == "PORTARIA":
+        return analisar_bloco_portaria(conteudo_documento_str, numero_diario)
+    else:
+        print(f"Tipo de documento desconhecido: {tipo_documento_identificado}")
+        return None
 
 def salvar_em_csv(dados, diretorio, nome_arquivo="informacoes_extraidas.csv"):
     caminho_csv = os.path.join(diretorio, nome_arquivo)
