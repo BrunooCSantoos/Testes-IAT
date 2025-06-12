@@ -4,54 +4,64 @@ import csv
 import glob
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER
 
 def converter_txt_para_pdf(arquivo_txt, caminho_arquivo_pdf, diario_publicacao):
-    # Cria um novo documento PDF
     doc = SimpleDocTemplate(caminho_arquivo_pdf, pagesize=letter)
-    
-    # Obtém os estilos de parágrafo padrão
     estilo = getSampleStyleSheet()
-    
-    # Lista para armazenar os elementos (parágrafos, espaços, etc.) que serão adicionados ao PDF
     elementos_pdf = []
 
+    estilo_justificado = ParagraphStyle(
+        name='Justified',
+        parent=estilo['Normal'],
+        alignment=TA_JUSTIFY, # Define o alinhamento para justificado
+        fontSize=12,
+        leading=12 # Espaçamento entre linhas, ajuste conforme necessário
+    )
+
+    estilo_centralizado = ParagraphStyle(
+        name='Centralized',
+        parent=estilo['h2'],
+        alignment=TA_CENTER, # Define o alinhamento para justificado
+        fontSize=14,
+        leading=12
+    )
 
     if not os.path.exists(arquivo_txt):
         print(f"Erro: O arquivo TXT '{arquivo_txt}' não foi encontrado e será ignorado.")
-
+        return
 
     try:
-        # Abre o arquivo TXT para leitura
         with open(arquivo_txt, 'r', encoding='utf-8') as f:
             texto = f.read()
 
-        # Adiciona o nome do arquivo como um título ou separador (opcional, para clareza)
-        elementos_pdf.append(Paragraph(f"--- Conteúdo de: {diario_publicacao} ---", estilo['h2']))
+        elementos_pdf.append(Paragraph(f"--- Conteúdo do {diario_publicacao} ---", estilo_centralizado))
         elementos_pdf.append(Spacer(1, 0.2 * 10))
 
-        # Divide o texto em parágrafos.
-        # Cada linha do TXT se torna um parágrafo no PDF.
         paragrafos = texto.split('\n')
         
         for p in paragrafos:
-            if p.strip():  # Adiciona apenas parágrafos que não são vazios
-                elementos_pdf.append(Paragraph(p.strip(), estilo['Normal']))
+            if p.strip():
+                if "---" in p:
+                    elementos_pdf.append(Paragraph(p.strip(), estilo_centralizado))
+                else:
+                    # Use o novo estilo justificado para os parágrafos normais
+                    elementos_pdf.append(Paragraph(p.strip(), estilo_justificado)) 
             elementos_pdf.append(Spacer(1, 0.2 * 10)) 
         
     except Exception as e:
         print(f"Ocorreu um erro ao processar o arquivo '{arquivo_txt}': {e}")
-
+        return
 
     try:
-        # Constrói o PDF com base em *todos* os elementos coletados
         doc.build(elementos_pdf)
         print(f"PDF criado com sucesso em: {caminho_arquivo_pdf}")
     except Exception as e:
         print(f"Ocorreu um erro ao gerar o PDF: {e}")
 
-    os.remove(arquivo_txt)
-
+        
+    
 def registro_existe(lista_registros, novo_registro):
     chaves_comparacao = ["Tipo_Documento", "Numero_Documento", "Nome", "Situação"]
     
@@ -283,20 +293,23 @@ def salvar_em_csv(dados, diretorio, nome_arquivo="informacoes_extraidas.csv"):
     else:
         print("Nenhuma informação foi extraída para salvar no CSV.")
 
-def extrair_e_salvar_informacoes_dioe(caminho_diretorio, arquivos_txt, numero_diario="N/A"):
+def extrair_e_salvar_informacoes_dioe(caminho_diretorio, arquivos_txt_para_processar, numero_diario="N/A"):
+    """
+    Extrai informações de múltiplos arquivos TXT (decretos e portarias),
+    salva-as em CSV e converte cada TXT processado em um PDF separado.
+    """
     print("Iniciando extração de informações dos arquivos TXT...")
     informacoes_extraidas = []
-    if len(arquivos_txt) == 1:
-        arquivos_txt = arquivos_txt[0]
     
-    nomes_arquivos_txt = [f for f in os.listdir(caminho_diretorio) if re.match(r"EX_.*\.txt", f)]
+    # Lista para armazenar os caminhos dos PDFs gerados
+    pdfs_gerados = [] 
 
-    for nome_arquivo in nomes_arquivos_txt: 
-        caminho_arquivo = os.path.join(caminho_diretorio, nome_arquivo)
+    for arquivo_txt_caminho in arquivos_txt_para_processar: 
+        nome_arquivo = os.path.basename(arquivo_txt_caminho)
         print(f"Processando arquivo: {nome_arquivo}")
 
         try:
-            with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+            with open(arquivo_txt_caminho, 'r', encoding='utf-8') as f:
                 conteudo_completo = f.read()
 
             data_publicacao = extrair_data_do_nome_arquivo(nome_arquivo)
@@ -325,18 +338,24 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio, arquivos_txt, numero_di
                               f"Número: {registro['Numero_Documento']}, "
                               f"Nome: {registro['Nome']}, "
                               f"Situação: {registro['Situação']}")
+            
+            # Converte o arquivo TXT atual para PDF após processar seus blocos
+            pdf_final_caminho = os.path.join(caminho_diretorio, f"{data_publicacao}.pdf")
+            converter_txt_para_pdf(arquivo_txt_caminho, pdf_final_caminho, data_publicacao)
+            pdfs_gerados.append(pdf_final_caminho) # Adiciona o PDF gerado à lista
 
         except Exception as e:
             print(f"Erro ao processar o arquivo '{nome_arquivo}': {e}")
             continue
 
     salvar_em_csv(informacoes_extraidas, caminho_diretorio)
-    txt_para_pdf = os.path.join(caminho_diretorio, arquivos_txt)
-    pdf_final = os.path.join(caminho_diretorio, f"{data_publicacao}.pdf")
-    converter_txt_para_pdf(txt_para_pdf, pdf_final, data_publicacao)
+    
+    # Retorna a lista de todos os PDFs gerados
+    return pdfs_gerados
 
-    return pdf_final
 
 if __name__ == "__main__":
     caminho_diretorio = os.getcwd()
-    extrair_e_salvar_informacoes_dioe(caminho_diretorio)
+    # Para teste, você precisaria criar alguns arquivos TXT de exemplo
+    # extrair_e_salvar_informacoes_dioe(caminho_diretorio, ["EX_2024-01-01_decretos.txt", "EX_2024-01-01_portarias.txt"])
+    print("Execute 'main.py' para o fluxo completo.")

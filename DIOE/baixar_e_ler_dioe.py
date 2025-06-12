@@ -63,7 +63,7 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
         "download.default_directory": pasta_destino,
         "download.prompt_for_download": False, 
         "download.directory_upgrade": True,
-        "safebrowsing.enabled": True 
+        "safeBrowse.enabled": True 
     }
     opcoes_chrome.add_experimental_option("prefs", preferencias)
     opcoes_chrome.add_argument("--headless") # Executa o navegador em modo headless (sem interface gráfica)
@@ -87,7 +87,7 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
             datas_baixadas = obter_datas_baixadas(caminho_arquivo_csv)
             if data_diario in datas_baixadas:
                 print(f"Diário da data {data_diario} já foi baixado. Pulando o download.")
-                return numero_diario
+                return numero_diario, True # Retorna o número do diário e True para indicar que já foi baixado
 
         # Clica no link inicial para abrir a consulta
         xpath_inicial = "/html/body/table/tbody/tr/td[4]/table[2]/tbody/tr/td/table/tbody/tr[3]/td/table/tbody/tr/td/table[3]/tbody/tr[3]/td[2]/a"
@@ -132,45 +132,68 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
             print(f"Diário da data {data_diario} baixado e registrado no CSV.")
         else:
             print("Diário baixado, mas a data não foi registrada devido a um erro de extração.")
+        return numero_diario, False # Retorna o número do diário e False para indicar que foi baixado agora
 
     except Exception as e:
         print(f"Ocorreu um erro durante o processo de download: {e}")
     finally:
         driver.quit()
         print("Navegador fechado.")
-        return numero_diario
-    
+        return None, False # Retorna None e False em caso de erro
+
 def start(caminho_diretorio):
     os.makedirs(caminho_diretorio, exist_ok=True)
     nome_arquivo_csv = "datas_dioe_baixadas.csv"
     caminho_arquivo_csv = os.path.join(caminho_diretorio, nome_arquivo_csv)
     
     # Baixa o DIOE
-    numero_diario = baixar_dioe(caminho_diretorio, caminho_arquivo_csv)
+    numero_diario, ja_baixado = baixar_dioe(caminho_diretorio, caminho_arquivo_csv)
     
-    arquivos = []
+    arquivos_txt_gerados = []
 
-    # Realiza a leitura das portarias e decretos
-    arquivo_portarias = leitura_portaria.ler(caminho_diretorio)
-    arquivo_decretos = leitura_decreto.ler(caminho_diretorio)
+    # Se o diário já foi baixado, pode não haver PDFs para processar.
+    # Neste caso, podemos procurar por arquivos TXT existentes que possam ter sido gerados
+    # em uma execução anterior e não foram removidos.
+    if ja_baixado:
+        print(f"Diário {numero_diario} já foi baixado. Procurando por arquivos TXT existentes para processamento.")
+        # Procura por arquivos TXT de decretos e portarias gerados anteriormente
+        padrao_decreto = os.path.join(caminho_diretorio, "EX*_decretos.txt")
+        padrao_portaria = os.path.join(caminho_diretorio, "EX*_portarias.txt")
+        arquivos_txt_gerados.extend(glob.glob(padrao_decreto))
+        arquivos_txt_gerados.extend(glob.glob(padrao_portaria))
+        if not arquivos_txt_gerados:
+            print("Nenhum arquivo TXT de decretos ou portarias encontrado para processamento.")
+            return numero_diario, [] # Retorna lista vazia se não encontrar TXT
 
-    if arquivo_portarias:
-        arquivos.append(arquivo_portarias)
-    
-    if arquivo_decretos:
-        arquivos.append(arquivo_decretos)
+    # Se não foi baixado (ou se queremos processar mesmo que já baixado,
+    # caso haja um erro na lógica de 'ja_baixado'), continue com a leitura.
+    # O `if not ja_baixado or arquivos_txt_gerados` garante que, se já baixado,
+    # ele só tentará ler se houver arquivos TXT pré-existentes para processar.
+    if not ja_baixado or arquivos_txt_gerados:
+        # Realiza a leitura das portarias e decretos
+        arquivo_portarias_path = leitura_portaria.ler(caminho_diretorio)
+        arquivo_decretos_path = leitura_decreto.ler(caminho_diretorio)
 
-    # Remove os diários baixados
-    padrao_arquivo_pdf = f"{caminho_diretorio}\\EX*.pdf"
-    arquivos_pdf = glob.glob(padrao_arquivo_pdf)
+        if arquivo_portarias_path and arquivo_portarias_path not in arquivos_txt_gerados:
+            arquivos_txt_gerados.append(arquivo_portarias_path)
+        
+        if arquivo_decretos_path and arquivo_decretos_path not in arquivos_txt_gerados:
+            arquivos_txt_gerados.append(arquivo_decretos_path)
 
-    for arquivo_pdf in arquivos_pdf:
-        os.remove(arquivo_pdf)
-        print(f"\nArquivo {arquivo_pdf} removido.")
+    # Remove os diários baixados (arquivos PDF originais)
+    padrao_arquivo_pdf = f"{caminho_diretorio}{os.sep}EX*.pdf" # Usa os.sep para compatibilidade
+    arquivos_pdf_originais = glob.glob(padrao_arquivo_pdf)
+
+    for arquivo_pdf_orig in arquivos_pdf_originais:
+        try:
+            os.remove(arquivo_pdf_orig)
+            print(f"\nArquivo {arquivo_pdf_orig} removido.")
+        except Exception as e:
+            print(f"Erro ao remover o arquivo PDF original '{arquivo_pdf_orig}': {e}")
     
     print("\nConcluído\n")
 
-    return numero_diario, arquivos
+    return numero_diario, arquivos_txt_gerados
     
 if __name__ == "__main__":
     caminho_diretorio = os.getcwd()

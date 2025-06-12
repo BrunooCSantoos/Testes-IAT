@@ -168,6 +168,8 @@ def salvar_documentos_em_arquivo(decretos, caminho_arquivo, titulo_secao):
     except Exception as e:
         print(f"Erro ao salvar decretos em '{caminho_arquivo}': {e}")
 
+    return caminho_arquivo
+
 def remover_arquivos_temporarios(arquivos):
     for arquivo in arquivos:
         if os.path.exists(arquivo):

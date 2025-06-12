@@ -160,17 +160,19 @@ def filtrar_portarias_designacao_ferias_iat(portarias, matchcase=True):
 def salvar_documentos_em_arquivo(documentos, caminho_arquivo, titulo_secao):
     try:
         with open(caminho_arquivo, 'w', encoding='utf-8') as f:
-            for i, decreto in enumerate(documentos):
+            for i, portaria in enumerate(documentos):
                 # Tenta identificar o número do decreto para incluir no marcador
-                match_numero = re.search(r'\bPORTARIA Nº\s*([\d.]+)', decreto, re.IGNORECASE)
+                match_numero = re.search(r'\bPORTARIA Nº\s*([\d.]+)', portaria, re.IGNORECASE)
                 numero = match_numero.group(1).strip() if match_numero else "Sem Numero"
                 
                 f.write(f"\n--- INÍCIO {titulo_secao} {numero} ---\n")
-                f.write(decreto.strip() + "\n")
+                f.write(portaria.strip() + "\n")
                 f.write(f"--- FIM {titulo_secao} {numero} ---\n\n")
         print(f"Decretos salvos em: {caminho_arquivo}")
     except Exception as e:
         print(f"Erro ao salvar decretos em '{caminho_arquivo}': {e}")
+    
+    return caminho_arquivo
 
 def remover_arquivos_temporarios(arquivos):
     for arquivo in arquivos:
