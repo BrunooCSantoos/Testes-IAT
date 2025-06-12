@@ -7,8 +7,6 @@ import leitor_captcha
 import time
 import os
 import glob
-from tkinter import Tk, Label, Entry, Button, PhotoImage
-from PIL import Image, ImageTk
 import csv
 from datetime import datetime
 import leitura_decreto
@@ -55,45 +53,6 @@ def extrair_data_diario(driver):
         print("Por favor, verifique o 'xpath_data' na função 'extrair_data_diario'.")
         return None
 
-"""def resolver_interface_captcha(caminho_imagem, largura_desejada=200):
-    # Abre uma interface gráfica para o usuário resolver o captcha.
-    janela_raiz = Tk()
-    janela_raiz.title("Resolver Captcha")
-    janela_raiz.geometry("400x300")
-    
-    # Carrega e redimensiona a imagem do captcha
-    imagem_original = Image.open(caminho_imagem)
-    largura_original, altura_original = imagem_original.size
-    altura_desejada = int(altura_original * (largura_desejada / largura_original))
-    imagem_redimensionada = imagem_original.resize((largura_desejada, altura_desejada))
-    imagem_tk = ImageTk.PhotoImage(imagem_redimensionada)
-
-    label_imagem = Label(janela_raiz, image=imagem_tk)
-    label_imagem.pack(pady=10)
-
-    label_instrucao = Label(janela_raiz, text="Digite o texto da imagem:")
-    label_instrucao.pack(pady=10)
-
-    entrada_captcha = Entry(janela_raiz)
-    entrada_captcha.pack(pady=10)
-    entrada_captcha.focus_set() # Coloca o foco no campo de entrada
-
-    resposta_usuario = ""
-
-    def enviar_resposta_usuario():
-        nonlocal resposta_usuario
-        resposta_usuario = entrada_captcha.get()
-        janela_raiz.destroy() # Fecha a janela Tkinter
-
-    # Permite enviar a resposta pressionando Enter
-    janela_raiz.bind('<Return>', lambda event=None: enviar_resposta_usuario())
-
-    botao_enviar = Button(janela_raiz, text="Enviar", command=enviar_resposta_usuario)
-    botao_enviar.pack(pady=15)
-
-    janela_raiz.mainloop() # Inicia o loop principal da interface gráfica
-    return resposta_usuario"""
-
 def baixar_dioe(pasta_destino, caminho_arquivo_csv):
     """
     Baixa o Diário Oficial Eletrônico (DIOE), resolvendo o captcha se necessário,
@@ -107,7 +66,7 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
         "safebrowsing.enabled": True 
     }
     opcoes_chrome.add_experimental_option("prefs", preferencias)
-    #opcoes_chrome.add_argument("--headless") # Executa o navegador em modo headless (sem interface gráfica)
+    opcoes_chrome.add_argument("--headless") # Executa o navegador em modo headless (sem interface gráfica)
 
     servico = ChromeService(executable_path=caminho_driver)    
     driver = webdriver.Chrome(service=servico, options=opcoes_chrome)
@@ -166,7 +125,7 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
             except Exception as e:
                 print(f"Erro durante a tentativa de resolução do CAPTCHA: {e}")
 
-        time.sleep(15) # Espera o download ser concluído
+        time.sleep(10) # Espera o download ser concluído
 
         if data_diario:
             adicionar_data_baixada(caminho_arquivo_csv, data_diario)
@@ -189,21 +148,29 @@ def start(caminho_diretorio):
     # Baixa o DIOE
     numero_diario = baixar_dioe(caminho_diretorio, caminho_arquivo_csv)
     
+    arquivos = []
+
     # Realiza a leitura das portarias e decretos
-    leitura_portaria.ler(caminho_diretorio)
-    leitura_decreto.ler(caminho_diretorio)
+    arquivo_portarias = leitura_portaria.ler(caminho_diretorio)
+    arquivo_decretos = leitura_decreto.ler(caminho_diretorio)
+
+    if arquivo_portarias:
+        arquivos.append(arquivo_portarias)
+    
+    if arquivo_decretos:
+        arquivos.append(arquivo_decretos)
 
     # Remove os diários baixados
     padrao_arquivo_pdf = f"{caminho_diretorio}\\EX*.pdf"
     arquivos_pdf = glob.glob(padrao_arquivo_pdf)
 
     for arquivo_pdf in arquivos_pdf:
-        #os.remove(arquivo_pdf)
+        os.remove(arquivo_pdf)
         print(f"\nArquivo {arquivo_pdf} removido.")
     
     print("\nConcluído\n")
 
-    return numero_diario
+    return numero_diario, arquivos
     
 if __name__ == "__main__":
     caminho_diretorio = os.getcwd()

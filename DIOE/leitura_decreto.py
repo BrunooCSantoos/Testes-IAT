@@ -182,6 +182,7 @@ def ler(caminho_diretorio):
     
     padrao_pdf = os.path.join(caminho_diretorio, "EX*.pdf")
     arquivos_pdf = glob.glob(padrao_pdf)
+    arquivo_decretos = None
 
     palavras_chave_gerais = [
         "DECRETO", "Nomeação", "Nomeia", 
@@ -208,7 +209,7 @@ def ler(caminho_diretorio):
                 decretos_nomeacao_orgao_final = filtrar_decretos_de_nomeacao_por_orgao(todos_decretos, matchcase)
 
                 if decretos_nomeacao_orgao_final:
-                    salvar_documentos_em_arquivo(decretos_nomeacao_orgao_final, caminho_txt_decretos_nomeacao_orgao, "DECRETO") # Título mais genérico
+                    arquivo_decretos = salvar_documentos_em_arquivo(decretos_nomeacao_orgao_final, caminho_txt_decretos_nomeacao_orgao, "DECRETO") # Título mais genérico
                 else:
                     print(f"Nenhum decreto de nomeação ou ampliação de vagas referente à SEAP ou IAT encontrado para salvar em '{caminho_txt_decretos_nomeacao_orgao}'.")
             else:
@@ -221,6 +222,8 @@ def ler(caminho_diretorio):
             caminho_txt_paragrafos_filtrados
         ]
         remover_arquivos_temporarios(arquivos_para_remover)
+
+        return arquivo_decretos
 
 if __name__ == "__main__":
     caminho = "S:\\GEAD-DRH\\DIAFI-DRH\\DRH - GESTÃO DE PESSOAS\\APLICATIVOS\\Testes-IAT\\"

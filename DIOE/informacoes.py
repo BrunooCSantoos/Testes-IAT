@@ -1,11 +1,12 @@
 import re
 import os
 import csv
+import glob
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 
-def converter_txt_para_pdf(arquivos_txt, caminho_arquivo_pdf):
+def converter_txt_para_pdf(arquivo_txt, caminho_arquivo_pdf, diario_publicacao):
     # Cria um novo documento PDF
     doc = SimpleDocTemplate(caminho_arquivo_pdf, pagesize=letter)
     
@@ -15,32 +16,32 @@ def converter_txt_para_pdf(arquivos_txt, caminho_arquivo_pdf):
     # Lista para armazenar os elementos (parágrafos, espaços, etc.) que serão adicionados ao PDF
     elementos_pdf = []
 
-    for arquivo_txt in arquivos_txt:
-        if not os.path.exists(arquivo_txt):
-            print(f"Erro: O arquivo TXT '{arquivo_txt}' não foi encontrado e será ignorado.")
-            continue 
 
-        try:
-            # Abre o arquivo TXT para leitura
-            with open(arquivo_txt, 'r', encoding='utf-8') as f:
-                texto = f.read()
+    if not os.path.exists(arquivo_txt):
+        print(f"Erro: O arquivo TXT '{arquivo_txt}' não foi encontrado e será ignorado.")
 
-            # Adiciona o nome do arquivo como um título ou separador (opcional, para clareza)
-            elementos_pdf.append(Paragraph(f"--- Conteúdo de: {os.path.basename(arquivo_txt)} ---", estilo['h2']))
-            elementos_pdf.append(Spacer(1, 0.2 * 10))
 
-            # Divide o texto em parágrafos.
-            # Cada linha do TXT se torna um parágrafo no PDF.
-            paragrafos = texto.split('\n')
-            
-            for p in paragrafos:
-                if p.strip():  # Adiciona apenas parágrafos que não são vazios
-                    elementos_pdf.append(Paragraph(p.strip(), estilo['Normal']))
-                elementos_pdf.append(Spacer(1, 0.2 * 10)) 
-            
-        except Exception as e:
-            print(f"Ocorreu um erro ao processar o arquivo '{arquivo_txt}': {e}")
-            continue 
+    try:
+        # Abre o arquivo TXT para leitura
+        with open(arquivo_txt, 'r', encoding='utf-8') as f:
+            texto = f.read()
+
+        # Adiciona o nome do arquivo como um título ou separador (opcional, para clareza)
+        elementos_pdf.append(Paragraph(f"--- Conteúdo de: {diario_publicacao} ---", estilo['h2']))
+        elementos_pdf.append(Spacer(1, 0.2 * 10))
+
+        # Divide o texto em parágrafos.
+        # Cada linha do TXT se torna um parágrafo no PDF.
+        paragrafos = texto.split('\n')
+        
+        for p in paragrafos:
+            if p.strip():  # Adiciona apenas parágrafos que não são vazios
+                elementos_pdf.append(Paragraph(p.strip(), estilo['Normal']))
+            elementos_pdf.append(Spacer(1, 0.2 * 10)) 
+        
+    except Exception as e:
+        print(f"Ocorreu um erro ao processar o arquivo '{arquivo_txt}': {e}")
+
 
     try:
         # Constrói o PDF com base em *todos* os elementos coletados
@@ -48,6 +49,8 @@ def converter_txt_para_pdf(arquivos_txt, caminho_arquivo_pdf):
         print(f"PDF criado com sucesso em: {caminho_arquivo_pdf}")
     except Exception as e:
         print(f"Ocorreu um erro ao gerar o PDF: {e}")
+
+    os.remove(arquivo_txt)
 
 def registro_existe(lista_registros, novo_registro):
     chaves_comparacao = ["Tipo_Documento", "Numero_Documento", "Nome", "Situação"]
@@ -181,7 +184,7 @@ def analisar_bloco_portaria(conteudo_documento_str, numero_diario="N/A"):
     if match_portaria:
         registro["Numero_Documento"] = match_portaria.group(1).strip()
 
-    if re.search(r'férias', conteudo_documento_str, re.IGNORECASE):
+    if re.search(r'por\s+motivo\s+de\s+férias', conteudo_documento_str, re.IGNORECASE):
         registro["Situação"] = "Designação (Substituição por Férias)"
         
         # Regex mais flexível para o substituto (nome e RG),
@@ -280,36 +283,11 @@ def salvar_em_csv(dados, diretorio, nome_arquivo="informacoes_extraidas.csv"):
     else:
         print("Nenhuma informação foi extraída para salvar no CSV.")
 
-def salvar_em_txt_formatado(dados, diretorio, nome_arquivo="informacoes_formatadas_para_pdf.txt"):
-    caminho_txt_formatado = os.path.join(diretorio, nome_arquivo)
-    if dados:
-        with open(caminho_txt_formatado, 'w', encoding='utf-8') as txtfile:
-            txtfile.write("--- INFORMAÇÕES EXTRAÍDAS DO DIÁRIO OFICIAL ---\n\n")
-            for i, info in enumerate(dados):
-                txtfile.write(f"Registro {i+1}:\n")
-                txtfile.write(f"  Tipo Documento: {info['Tipo_Documento']}\n")
-                txtfile.write(f"  Número Documento: {info['Numero_Documento']}\n")
-                txtfile.write(f"  Situação: {info['Situação']}\n")
-                txtfile.write(f"  Nome: {info['Nome']}\n")
-                txtfile.write(f"  RG: {info['RG']}\n")
-                if info['Titular_Ferias_Nome'] != "N/A":
-                    txtfile.write(f"  Titular de Férias: {info['Titular_Ferias_Nome']}\n")
-                if info['Periodo_Ferias'] != "N/A":
-                    txtfile.write(f"  Período de Férias: {info['Periodo_Ferias']}\n")
-                if info['Substituto_Nome'] != "N/A":
-                    txtfile.write(f"  Substituto: {info['Substituto_Nome']}\n")
-                txtfile.write(f"  Cargo: {info['Cargo']}\n")
-                txtfile.write(f"  Órgão/Lotação: {info['Orgao_Lotacao']}\n")
-                txtfile.write(f"  Número Diário: {info['Numero_Diario']}\n")
-                txtfile.write(f"  Diário Fonte: {info['Diario_Fonte']}\n")
-                txtfile.write("-" * 40 + "\n\n")
-        print(f"Informações formatadas salvas para PDF em: {caminho_txt_formatado}")
-    else:
-        print("Nenhuma informação para formatar e salvar em TXT para PDF.")
-
-def extrair_e_salvar_informacoes_dioe(caminho_diretorio, numero_diario="N/A"):
+def extrair_e_salvar_informacoes_dioe(caminho_diretorio, arquivos_txt, numero_diario="N/A"):
     print("Iniciando extração de informações dos arquivos TXT...")
     informacoes_extraidas = []
+    if len(arquivos_txt) == 1:
+        arquivos_txt = arquivos_txt[0]
     
     nomes_arquivos_txt = [f for f in os.listdir(caminho_diretorio) if re.match(r"EX_.*\.txt", f)]
 
@@ -353,7 +331,11 @@ def extrair_e_salvar_informacoes_dioe(caminho_diretorio, numero_diario="N/A"):
             continue
 
     salvar_em_csv(informacoes_extraidas, caminho_diretorio)
-    salvar_em_txt_formatado(informacoes_extraidas, caminho_diretorio)
+    txt_para_pdf = os.path.join(caminho_diretorio, arquivos_txt)
+    pdf_final = os.path.join(caminho_diretorio, f"{data_publicacao}.pdf")
+    converter_txt_para_pdf(txt_para_pdf, pdf_final, data_publicacao)
+
+    return pdf_final
 
 if __name__ == "__main__":
     caminho_diretorio = os.getcwd()

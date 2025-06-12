@@ -168,6 +168,7 @@ def resolver_captcha_auto(caminho_captcha, idioma=['pt']):
         texto_captcha = texto_captcha.replace('º', 'O') # Replace masculine ordinal indicator with degree symbol
         texto_captcha = texto_captcha.replace('5', 'S')
         texto_captcha = texto_captcha.replace('8', 'B')
+        texto_captcha = texto_captcha.replace('3', 'B')
         texto_captcha = texto_captcha.replace('4', 'A')
         texto_captcha = texto_captcha.replace('6', 'G')
         texto_captcha = texto_captcha.replace('7', 'T')

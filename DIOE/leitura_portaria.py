@@ -186,6 +186,7 @@ def ler(caminho_diretorio):
     
     padrao_pdf = os.path.join(caminho_diretorio, "EX*.pdf")
     arquivos_pdf = glob.glob(padrao_pdf)
+    arquivo_portarias = None
 
     palavras_chave_gerais = [
         "PORTARIA Nº", "Designar", "férias",
@@ -211,7 +212,7 @@ def ler(caminho_diretorio):
                 portarias_filtradas_e_classificadas = filtrar_portarias_designacao_ferias_iat(todas_portarias, matchcase)
 
                 if portarias_filtradas_e_classificadas:
-                    salvar_documentos_em_arquivo(
+                    arquivo_portarias = salvar_documentos_em_arquivo(
                         portarias_filtradas_e_classificadas, 
                         caminho_txt_portarias_designacao_iat, 
                         "PORTARIA"
@@ -229,6 +230,8 @@ def ler(caminho_diretorio):
             caminho_txt_paragrafos_filtrados
         ]
         remover_arquivos_temporarios(arquivos_para_remover)
+        
+        return arquivo_portarias
 
 if __name__ == "__main__":
     caminho = "S:\\GEAD-DRH\\DIAFI-DRH\\DRH - GESTÃO DE PESSOAS\\APLICATIVOS\\Testes-IAT\\"
