@@ -182,10 +182,30 @@ def resolver_captcha_auto(caminho_captcha, idioma=['pt']):
 
 # Example usage
 if __name__ == "__main__":
-    captcha_path = r"S:\GEAD-DRH\DIAFI-DRH\DRH - GESTÃO DE PESSOAS\APLICATIVOS\Testes-IAT\DIOE\Captchas\captcha 1.png" # Assuming captcha 2.png is in the same directory
-    resolved_text = resolver_captcha_auto(captcha_path)
+    numeros = {
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15"
+    }
 
-    if resolved_text:
-        print(f"\nCAPTCHA FINAL RESOLVIDO: {resolved_text}")
-    else:
-        print("\nNão foi possível resolver o CAPTCHA.")
+    for numero in numeros:
+        captcha_path = f"S:\\GEAD-DRH\\DIAFI-DRH\\DRH - GESTÃO DE PESSOAS\\APLICATIVOS\\Testes-IAT\\DIOE\\Captchas\\captcha {numero}.png"
+
+        resolved_text = resolver_captcha_auto(captcha_path)
+
+        if resolved_text:
+            print(f"\nCAPTCHA FINAL RESOLVIDO: {resolved_text}")
+        else:
+            print("\nNão foi possível resolver o CAPTCHA.")
