@@ -4,13 +4,9 @@ import requests
 import zipfile
 import os
 import re
-import cv2
-import numpy as np
 import subprocess
 import platform
 import json
-import easyocr
-from PIL import Image, ImageEnhance, ImageFilter
 
 chromedriver_path = "S:\\GEAD-DRH\\DIAFI-DRH\\DRH - GESTÃO DE PESSOAS\\CONJUNTO DE ATIVIDADES DRH - PLANILHAS\\Selenium\\chromedriver-win64\\chromedriver.exe"
 
@@ -212,86 +208,3 @@ class chromedriver_func:
                 return None, None, None
 
             return proxy_url, proxy_username, proxy_password
-    
-    def segmentar_imagem(imagem):
-        gray = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-
-        # Binariza a imagem usando o método de Otsu
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-        # Encontra os contornos dos caracteres na imagem binarizada
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        # Ordena os contornos da esquerda para a direita
-        contours = sorted(contours, key=lambda c: cv2.boundingRect(c)[0])
-
-        # Segmenta os caracteres com base nos contornos encontrados
-        caracteres_segmentados = []
-        for contorno in contours:
-            x, y, largura, altura = cv2.boundingRect(contorno)
-            # Filtra contornos muito pequenos ou muito grandes, que provavelmente não são caracteres
-            if largura > 5 and altura > 10 and largura < 50 and altura < 50:
-                # Extrai a imagem do caractere usando as coordenadas do contorno
-                caractere_imagem = imagem[y:y+altura, x:x+largura]
-                caracteres_segmentados.append(caractere_imagem)
-        return caracteres_segmentados
-
-    def resolver_captcha_auto(self, caminho_captcha, idioma=['pt']):
-        func = chromedriver_func()
-        try:
-            print(f"Lendo CAPTCHA do arquivo: {caminho_captcha}")
-            # Abre a imagem do CAPTCHA usando PIL
-            imagem = Image.open(caminho_captcha)
-            print("Imagem aberta com sucesso usando PIL.")
-
-            # Converte a imagem PIL para um array NumPy para usar com OpenCV
-            imagem_np = np.array(imagem)
-
-            # Converte a imagem para escala de cinza para simplificar o processamento
-            imagem_gray = cv2.cvtColor(imagem_np, cv2.COLOR_BGR2GRAY)
-
-            # Melhora o contraste da imagem usando CLAHE (Contrast Limited Adaptive Histogram Equalization)
-            # Isso ajuda a destacar os caracteres em CAPTCHAs com iluminação ruim ou ruído
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-            imagem_clahe = clahe.apply(imagem_gray)
-
-            # Binariza a imagem usando o método de Otsu para separar os caracteres do fundo
-            _, imagem_binarizada = cv2.threshold(imagem_clahe, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-
-            # Aplica um filtro de mediana para reduzir o ruído na imagem binarizada
-            imagem_mediana = cv2.medianBlur(imagem_binarizada, 3)
-
-            # Segmenta os caracteres na imagem pré-processada
-            caracteres_segmentados = func.segmentar_imagem()
-            if not caracteres_segmentados:
-                caracteres_segmentados = [imagem_np]  # Processa a imagem inteira se nenhum caractere for segmentado
-
-            print(f"Imagem pré-processada com sucesso. Caracteres segmentados: {len(caracteres_segmentados)}")
-
-            # Inicializa o leitor EasyOCR com os idiomas especificados
-            reader = easyocr.Reader(idioma)
-            print("Leitor EasyOCR inicializado.")
-
-            # Tenta reconhecer o texto em cada caractere segmentado
-            resultados_ocr = []
-            for caractere_imagem in caracteres_segmentados:
-                resultado_ocr = reader.readtext(caractere_imagem)
-                if resultado_ocr:
-                    # Adiciona o texto reconhecido ao resultado, convertendo para maiúsculas e removendo espaços
-                    resultados_ocr.append(resultado_ocr[0][1].strip().upper())
-                else:
-                    resultados_ocr.append("")  # Adiciona uma string vazia se nenhum texto for reconhecido
-
-            # Junta os resultados do OCR para formar o texto do CAPTCHA
-            texto_captcha = "".join(resultados_ocr)
-            print(f"Resultado da leitura do OCR: {texto_captcha}")
-
-            # Remove espaços extras no texto do CAPTCHA
-            texto_captcha = texto_captcha.replace(" ", "")
-            print(f"Texto do CAPTCHA resolvido: {texto_captcha}")
-            return texto_captcha
-
-        except Exception as e:
-            # Captura e imprime qualquer exceção que ocorra durante o processo
-            print(f"Erro ao processar CAPTCHA: {e}")
-            return None
