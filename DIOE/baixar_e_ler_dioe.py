@@ -3,6 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options
+import leitor_captcha
 import time
 import os
 import glob
@@ -54,7 +55,7 @@ def extrair_data_diario(driver):
         print("Por favor, verifique o 'xpath_data' na função 'extrair_data_diario'.")
         return None
 
-def resolver_interface_captcha(caminho_imagem, largura_desejada=200):
+"""def resolver_interface_captcha(caminho_imagem, largura_desejada=200):
     # Abre uma interface gráfica para o usuário resolver o captcha.
     janela_raiz = Tk()
     janela_raiz.title("Resolver Captcha")
@@ -91,7 +92,7 @@ def resolver_interface_captcha(caminho_imagem, largura_desejada=200):
     botao_enviar.pack(pady=15)
 
     janela_raiz.mainloop() # Inicia o loop principal da interface gráfica
-    return resposta_usuario
+    return resposta_usuario"""
 
 def baixar_dioe(pasta_destino, caminho_arquivo_csv):
     """
@@ -106,7 +107,7 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
         "safebrowsing.enabled": True 
     }
     opcoes_chrome.add_experimental_option("prefs", preferencias)
-    opcoes_chrome.add_argument("--headless") # Executa o navegador em modo headless (sem interface gráfica)
+    #opcoes_chrome.add_argument("--headless") # Executa o navegador em modo headless (sem interface gráfica)
 
     servico = ChromeService(executable_path=caminho_driver)    
     driver = webdriver.Chrome(service=servico, options=opcoes_chrome)
@@ -145,22 +146,26 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
         xpath_captcha_img = "/html/body/div[3]/div[2]/div/table/tbody/tr/td/table/tbody/tr[2]/td/table/tbody/tr/td[2]/img"
         elemento_captcha = driver.find_element(By.XPATH, xpath_captcha_img)
         caminho_captcha = os.path.join(pasta_destino, "captcha.png")
-        elemento_captcha.screenshot(caminho_captcha)
+        
+        while elemento_captcha:
+            try:
+                elemento_captcha.screenshot(caminho_captcha)
+                time.sleep(1)
+                resposta_captcha = leitor_captcha.resolver_captcha_auto(caminho_captcha)
+                campo_resposta = driver.find_element(By.ID, "imagemVerificacao")
+                campo_resposta.send_keys(resposta_captcha)
+                botao_download = driver.find_element(By.ID, "Enviar")
+                botao_download.click()
+                time.sleep(1)
 
-        # Resolve o captcha usando a interface Tkinter
-        resposta_captcha = resolver_interface_captcha(caminho_captcha, largura_desejada=300)
+                try:
+                    elemento_captcha = driver.find_element(By.XPATH, xpath_captcha_img)
+                except:
+                    elemento_captcha = None
+                    
+            except Exception as e:
+                print(f"Erro durante a tentativa de resolução do CAPTCHA: {e}")
 
-        # Remove o arquivo do captcha após a resolução
-        if os.path.exists(caminho_captcha):
-            os.remove(caminho_captcha)
-
-        # Envia a resposta do captcha
-        campo_resposta = driver.find_element(By.ID, "imagemVerificacao")
-        campo_resposta.send_keys(resposta_captcha)
-
-        # Clica no botão de download
-        botao_download = driver.find_element(By.ID, "Enviar")
-        botao_download.click()
         time.sleep(15) # Espera o download ser concluído
 
         if data_diario:

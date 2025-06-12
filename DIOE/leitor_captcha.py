@@ -1,3 +1,4 @@
+import os
 import cv2
 import easyocr
 import numpy as np
@@ -174,10 +175,12 @@ def resolver_captcha_auto(caminho_captcha, idioma=['pt']):
         texto_captcha = texto_captcha.replace('1', 'I')
 
         print(f"Texto do CAPTCHA resolvido (final): {texto_captcha}")
+        os.remove(caminho_captcha)
         return texto_captcha.upper()
 
     except Exception as e:
         print(f"Erro ao processar CAPTCHA: {e}")
+        os.remove(caminho_captcha)
         return None
 
 # Example usage
