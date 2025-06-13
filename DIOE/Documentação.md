@@ -19,9 +19,10 @@ O projeto é modular e organizado nos seguintes arquivos:
 
 - gerenciador_email_gui.py: Implementa a interface gráfica do usuário (GUI) para controlar e agendar a automação.
 
-Descrição Detalhada dos Módulos
+# Descrição Detalhada dos Módulos
 
-- main.py
+- main.py:
+
 Este módulo é o coração da automação. Ele coordena as chamadas para as outras funções e módulos para executar o fluxo completo:
 
 iniciar(update_status_gui=None, destinatarios_email=None, assunto_email=None, texto_email=None):
@@ -42,7 +43,8 @@ update_status_gui: Callback para atualizar o status na GUI.
 
 destinatarios_email, assunto_email, texto_email: Parâmetros para customizar o e-mail.
 
-- baixar_e_ler_dioe.py
+- baixar_e_ler_dioe.py:
+
 Este módulo lida com o download dos diários oficiais e a coordenação da leitura:
 
 obter_datas_baixadas(caminho_csv): Lê um arquivo CSV para obter as datas dos diários já baixados, evitando downloads duplicados.
@@ -67,7 +69,8 @@ Chama leitura_portaria.ler() e leitura_decreto.ler() para processar os PDFs baix
 
 Remove os arquivos PDF originais após o processamento.
 
-- leitura_portaria.py
+- leitura_portaria.py:
+
 Este módulo é dedicado à extração de portarias de documentos:
 
 extrair_texto_pdf(caminho_pdf, caminho_txt_paginas_filtradas, palavras_chave, matchcase=False): Extrai texto de páginas PDF que contêm pelo menos 3 ocorrências das palavras-chave especificadas e salva em um arquivo TXT temporário.
@@ -101,7 +104,8 @@ remover_arquivos_temporarios(...): (Mesma função de leitura_portaria.py)
 
 ler(caminho_diretorio): Função principal para o módulo, orquestrando a extração de decretos de PDFs.
 
-- informacoes.py
+- informacoes.py:
+
 Responsável por processar os arquivos TXT de portarias/decretos, extrair informações estruturadas, salvar em CSV e converter os TXTs em PDFs:
 
 converter_txt_para_pdf(arquivo_txt, caminho_arquivo_pdf, diario_publicacao): Converte um arquivo TXT para um PDF formatado, incluindo um título com a data de publicação.
@@ -124,7 +128,8 @@ Salva todas as informações extraídas em um arquivo CSV.
 
 Retorna a lista de caminhos dos PDFs gerados.
 
-- expresso_funcoes.py
+- expresso_funcoes.py:
+
 Contém funções para interagir com o sistema de e-mail Expresso via Selenium WebDriver:
 
 Variáveis globais: caminho_driver, opcoes_chrome, servico, driver (instância do WebDriver).
@@ -149,7 +154,8 @@ enviar_email(): Clica no botão de envio do e-mail.
 
 fechar_driver(): Fecha a instância do Selenium WebDriver.
 
-- chromedriver_funcoes.py
+- chromedriver_funcoes.py:
+
 Gerencia o ChromeDriver, que é essencial para a automação do navegador:
 
 chromedriver_path: Variável que armazena o caminho do ChromeDriver.
@@ -162,7 +168,8 @@ baixar_chromedriver(): Baixa a versão compatível do ChromeDriver com base na v
 
 obter_credenciais_proxy(): Abre janelas de diálogo (Tkinter) para solicitar nome de usuário e senha do proxy, caso seja necessário.
 
-- leitor_captcha.py
+- leitor_captcha.py:
+
 Implementa a lógica para resolver CAPTCHAs de imagem:
 
 segmentar_imagem(imagem_binarizada_input): Segmenta a imagem do CAPTCHA em caracteres individuais usando Análise de Componentes Conectados (CCA).
@@ -183,7 +190,8 @@ Aplica pós-processamento para corrigir erros comuns de OCR (ex: "0" para "O", "
 
 Remove o arquivo de imagem do CAPTCHA temporário.
 
-- gerenciador_email_gui.py
+- gerenciador_email_gui.py:
+
 Fornece a interface gráfica do usuário para interagir com a automação:
 
 GerenciadorEmailApp (classe):
