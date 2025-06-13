@@ -1,7 +1,6 @@
 import re
 import os
 import csv
-import glob
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -61,7 +60,7 @@ def converter_txt_para_pdf(arquivo_txt, caminho_arquivo_pdf, diario_publicacao):
         print(f"Ocorreu um erro ao gerar o PDF: {e}")
 
 def registro_existe(lista_registros, novo_registro):
-    chaves_comparacao = ["Tipo_Documento", "Numero_Documento", "Nome", "Situação"]
+    chaves_comparacao = ["Tipo_Documento", "Numero_Documento"]
     
     for registro_existente in lista_registros:
         match = True

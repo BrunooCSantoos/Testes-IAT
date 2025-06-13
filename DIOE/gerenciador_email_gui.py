@@ -29,7 +29,7 @@ class GerenciadorEmailApp:
 
         self.criar_widgets()
         # Inicia o agendador apenas após a GUI estar pronta e as funções de status disponíveis
-        self.agendar_verificacao_diaria() 
+        self.agendar_verificacao_diaria()
 
         # Configura o que acontece ao fechar a janela
         self.root.protocol("WM_DELETE_WINDOW", self.ao_fechar_aplicacao)
@@ -470,7 +470,7 @@ class GerenciadorEmailApp:
                 self.atualizar_status("Aguardando o agendador finalizar...")
                 self.thread_verificacao_diaria.join(timeout=5) # Dá um tempo para a thread terminar
                 if self.thread_verificacao_diaria.is_alive():
-                    self.atualizar_status("Aviso: Agendador não finalizou graciosamente.")
+                    self.atualizar_status("Aviso: Agendador não finalizou.")
 
             # Se houver uma automação em andamento, tente fechar o driver
             if self.thread_automacao and self.thread_automacao.is_alive():
