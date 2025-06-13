@@ -253,6 +253,18 @@ def assinatura():
         print(f"Erro ao tentar adicionar assinatura: {e}")
         raise
 
+def fechar_driver():
+    """
+    Fecha a instância do WebDriver (navegador).
+    """
+    global driver
+    if driver: # Verifica se o driver existe e não é None
+        try:
+            driver.quit()
+            print("Driver do Chrome fechado com sucesso.")
+        except Exception as e:
+            print(f"Erro ao tentar fechar o driver do Chrome: {e}")
+        driver = None # Define como None para indicar que foi fechado
 # A função iniciar_envio_email não é mais chamada diretamente,
 # a lógica foi movida para processar_envio_email na InterfaceEnvioEmail.
 # Você pode remover ou manter, mas não será usada a partir da GUI.

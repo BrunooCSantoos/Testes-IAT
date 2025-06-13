@@ -138,7 +138,7 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
     finally:
         driver.quit()
         print("Navegador fechado.")
-        return numero_diario, False # Retorna None e False em caso de erro
+        return numero_diario, data_diario, False # Retorna None e False em caso de erro
 
 def start(caminho_diretorio):
     os.makedirs(caminho_diretorio, exist_ok=True)
@@ -146,7 +146,7 @@ def start(caminho_diretorio):
     caminho_arquivo_csv = os.path.join(caminho_diretorio, nome_arquivo_csv)
     
     # Baixa o DIOE
-    numero_diario, ja_baixado = baixar_dioe(caminho_diretorio, caminho_arquivo_csv)
+    numero_diario, data_diario, ja_baixado = baixar_dioe(caminho_diretorio, caminho_arquivo_csv)
     
     arquivos_txt_gerados = []
 
@@ -162,7 +162,7 @@ def start(caminho_diretorio):
         arquivos_txt_gerados.extend(glob.glob(padrao_portaria))
         if not arquivos_txt_gerados:
             print("Nenhum arquivo TXT de decretos ou portarias encontrado para processamento.")
-            return numero_diario, [] # Retorna lista vazia se não encontrar TXT
+            return numero_diario, data_diario, [] # Retorna lista vazia se não encontrar TXT
 
     # Se não foi baixado (ou se queremos processar mesmo que já baixado,
     # caso haja um erro na lógica de 'ja_baixado'), continue com a leitura.
@@ -192,7 +192,7 @@ def start(caminho_diretorio):
     
     print("\nConcluído\n")
 
-    return numero_diario, arquivos_txt_gerados
+    return numero_diario, data_diario, arquivos_txt_gerados
     
 if __name__ == "__main__":
     caminho_diretorio = os.getcwd()
