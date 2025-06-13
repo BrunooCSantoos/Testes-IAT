@@ -1,26 +1,27 @@
-Estrutura do Projeto
+# Estrutura do Projeto
 O projeto é modular e organizado nos seguintes arquivos:
 
-main.py: O ponto de entrada principal da automação, orquestrando o download, leitura, extração e envio de e-mails.
+- main.py: O ponto de entrada principal da automação, orquestrando o download, leitura, extração e envio de e-mails.
 
-baixar_e_ler_dioe.py: Responsável por baixar os diários oficiais e iniciar o processo de leitura.
+- baixar_e_ler_dioe.py: Responsável por baixar os diários oficiais e iniciar o processo de leitura.
 
-leitura_portaria.py: Contém funções para extrair e filtrar portarias de arquivos PDF/TXT.
+- leitura_portaria.py: Contém funções para extrair e filtrar portarias de arquivos PDF/TXT.
 
-leitura_decreto.py: Contém funções para extrair e filtrar decretos de arquivos PDF/TXT.
+- leitura_decreto.py: Contém funções para extrair e filtrar decretos de arquivos PDF/TXT.
 
-informacoes.py: Trata da extração e salvamento de informações relevantes em formato CSV e conversão de TXT para PDF.
+- informacoes.py: Trata da extração e salvamento de informações relevantes em formato CSV e conversão de TXT para PDF.
 
-expresso_funcoes.py: Fornece funções para interação com o sistema de e-mail Expresso, incluindo login, preenchimento de campos e envio.
+- expresso_funcoes.py: Fornece funções para interação com o sistema de e-mail Expresso, incluindo login, preenchimento de campos e envio.
 
-chromedriver_funcoes.py: Lida com o download e a configuração do ChromeDriver, além de obter credenciais de proxy.
+- chromedriver_funcoes.py: Lida com o download e a configuração do ChromeDriver, além de obter credenciais de proxy.
 
-leitor_captcha.py: Implementa a lógica para resolver CAPTCHAs usando OCR.
+- leitor_captcha.py: Implementa a lógica para resolver CAPTCHAs usando OCR.
 
-gerenciador_email_gui.py: Implementa a interface gráfica do usuário (GUI) para controlar e agendar a automação.
+- gerenciador_email_gui.py: Implementa a interface gráfica do usuário (GUI) para controlar e agendar a automação.
 
 Descrição Detalhada dos Módulos
-main.py
+
+- main.py
 Este módulo é o coração da automação. Ele coordena as chamadas para as outras funções e módulos para executar o fluxo completo:
 
 iniciar(update_status_gui=None, destinatarios_email=None, assunto_email=None, texto_email=None):
@@ -41,7 +42,7 @@ update_status_gui: Callback para atualizar o status na GUI.
 
 destinatarios_email, assunto_email, texto_email: Parâmetros para customizar o e-mail.
 
-baixar_e_ler_dioe.py
+- baixar_e_ler_dioe.py
 Este módulo lida com o download dos diários oficiais e a coordenação da leitura:
 
 obter_datas_baixadas(caminho_csv): Lê um arquivo CSV para obter as datas dos diários já baixados, evitando downloads duplicados.
@@ -66,7 +67,7 @@ Chama leitura_portaria.ler() e leitura_decreto.ler() para processar os PDFs baix
 
 Remove os arquivos PDF originais após o processamento.
 
-leitura_portaria.py
+- leitura_portaria.py
 Este módulo é dedicado à extração de portarias de documentos:
 
 extrair_texto_pdf(caminho_pdf, caminho_txt_paginas_filtradas, palavras_chave, matchcase=False): Extrai texto de páginas PDF que contêm pelo menos 3 ocorrências das palavras-chave especificadas e salva em um arquivo TXT temporário.
@@ -83,7 +84,7 @@ remover_arquivos_temporarios(arquivos_para_remover): Exclui os arquivos temporá
 
 ler(caminho_diretorio): Função principal para o módulo, orquestrando a extração de portarias de PDFs no diretório.
 
-leitura_decreto.py
+- leitura_decreto.py
 Similar ao leitura_portaria.py, mas focado na extração de decretos:
 
 extrair_texto_pdf(...): (Mesma função de leitura_portaria.py)
@@ -100,7 +101,7 @@ remover_arquivos_temporarios(...): (Mesma função de leitura_portaria.py)
 
 ler(caminho_diretorio): Função principal para o módulo, orquestrando a extração de decretos de PDFs.
 
-informacoes.py
+- informacoes.py
 Responsável por processar os arquivos TXT de portarias/decretos, extrair informações estruturadas, salvar em CSV e converter os TXTs em PDFs:
 
 converter_txt_para_pdf(arquivo_txt, caminho_arquivo_pdf, diario_publicacao): Converte um arquivo TXT para um PDF formatado, incluindo um título com a data de publicação.
@@ -123,7 +124,7 @@ Salva todas as informações extraídas em um arquivo CSV.
 
 Retorna a lista de caminhos dos PDFs gerados.
 
-expresso_funcoes.py
+- expresso_funcoes.py
 Contém funções para interagir com o sistema de e-mail Expresso via Selenium WebDriver:
 
 Variáveis globais: caminho_driver, opcoes_chrome, servico, driver (instância do WebDriver).
@@ -148,7 +149,7 @@ enviar_email(): Clica no botão de envio do e-mail.
 
 fechar_driver(): Fecha a instância do Selenium WebDriver.
 
-chromedriver_funcoes.py
+- chromedriver_funcoes.py
 Gerencia o ChromeDriver, que é essencial para a automação do navegador:
 
 chromedriver_path: Variável que armazena o caminho do ChromeDriver.
@@ -161,7 +162,7 @@ baixar_chromedriver(): Baixa a versão compatível do ChromeDriver com base na v
 
 obter_credenciais_proxy(): Abre janelas de diálogo (Tkinter) para solicitar nome de usuário e senha do proxy, caso seja necessário.
 
-leitor_captcha.py
+- leitor_captcha.py
 Implementa a lógica para resolver CAPTCHAs de imagem:
 
 segmentar_imagem(imagem_binarizada_input): Segmenta a imagem do CAPTCHA em caracteres individuais usando Análise de Componentes Conectados (CCA).
@@ -182,7 +183,7 @@ Aplica pós-processamento para corrigir erros comuns de OCR (ex: "0" para "O", "
 
 Remove o arquivo de imagem do CAPTCHA temporário.
 
-gerenciador_email_gui.py
+- gerenciador_email_gui.py
 Fornece a interface gráfica do usuário para interagir com a automação:
 
 GerenciadorEmailApp (classe):
@@ -205,7 +206,7 @@ configurar_agendamento(): Abre um diálogo para o usuário definir o horário de
 
 ao_fechar_janela(): Gerencia o fechamento da aplicação, garantindo que as threads e o driver do navegador sejam encerrados corretamente.
 
-Como Executar
+# Como Executar
 Pré-requisitos:
 
 Python 3.x instalado.
@@ -291,7 +292,7 @@ Limpeza: Remove todos os arquivos temporários gerados (PDFs originais, TXTs, PD
 
 Finalização: O driver do navegador é fechado e a thread da automação termina.
 
-Considerações Importantes
+# Considerações Importantes
 Modo Headless: O expresso_funcoes.py está configurado para --headless, o que significa que o navegador será executado em segundo plano sem uma interface gráfica. Para depuração visual, comente a linha opcoes_chrome.add_argument("--headless").
 
 Caminhos de Arquivo: Certifique-se de que os caminhos de arquivo (especialmente para o ChromeDriver) estão corretos e que o script tem as permissões necessárias para ler/escrever arquivos no diretório de trabalho.
