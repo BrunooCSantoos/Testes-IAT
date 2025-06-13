@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import messagebox, simpledialog, scrolledtext
 import tkinter.ttk as ttk
 import threading
-import time
 import json
 import os
 from datetime import datetime, timedelta
@@ -66,8 +65,8 @@ class GerenciadorEmailApp:
             "senha_remetente": "",
             "destinatarios": [],
             "horarios_agendamento": ["08:00"],
-            "assunto_email": "DIOE - Processamento do Diário Oficial Eletrônico",
-            "texto_email_padrao": "Prezados,\n\nSegue o Diário Oficial Eletrônico (DIOE) processado.\n\nAtenciosamente,\n\nEquipe de Automação."
+            "assunto_email": "DIOE - Di\u00e1rio de {data_diario} N\u00ba {numero_diario}",
+            "texto_email_padrao": "Bom dia,\n\nSegue o Di\u00e1rio Ofical de n\u00famero {numero_diario}, publicado em {data_diario}, processado.\n\nAtenciosamente,"
         }
 
     def salvar_configuracao(self):
