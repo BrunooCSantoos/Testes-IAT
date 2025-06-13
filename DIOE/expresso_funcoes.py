@@ -22,28 +22,28 @@ driver = webdriver.Chrome(service=servico, options=opcoes_chrome)
 
 # caminho_diretorio = os.getcwd() # Não é usado globalmente, pode ser removido
 
-def email_expresso():
+def email_expresso(login, senha): # Modificado para aceitar login e senha
     """
-    Navega até a página de login do Expresso e solicita as credenciais via GUI.
+    Navega até a página de login do Expresso e utiliza as credenciais fornecidas.
     """
     try:
         url = "https://expresso.celepar.pr.gov.br/login.php?cd=10&phpgw_forward=%2FexpressoMail1_2%2Findex.php"
         driver.get(url)
-        time.sleep(2) # Espera a página carregar
-        login, senha = solicitar_login_expresso()
+        time.sleep(2)
+
         campo_login = driver.find_element(By.ID, "user")
         campo_senha = driver.find_element(By.ID, "passwd")
         campo_login.send_keys(login)
         campo_senha.send_keys(senha)
         btn_entrar = driver.find_element(By.ID, "submitit")
         btn_entrar.click()
-        WebDriverWait(driver, 15).until(EC.url_contains("expressoMail1_2")) # Espera a URL de login mudar
-        time.sleep(3) # Espera adicional para garantir o carregamento completo da dashboard
+        WebDriverWait(driver, 15).until(EC.url_contains("expressoMail1_2"))
+        time.sleep(3)
 
     except Exception as e:
         print(f"Ocorreu um erro durante o processo de login: {e}")
-        driver.quit() # Encerra o driver em caso de erro no login
-        raise # Levanta a exceção para ser tratada no módulo da interface
+        driver.quit()
+        raise
 
 def solicitar_login_expresso():
     """

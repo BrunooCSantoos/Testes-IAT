@@ -211,7 +211,7 @@ def extrair_decretos(paragrafos, matchcase=True):
 
     return decretos_encontrados
 
-def filtrar_decretos_de_nomeacao_por_orgao(decretos, matchcase=False):
+def filtrar_decretos(decretos, matchcase=False):
     decretos_filtrados = []
     # Define as flags para a expressão regular, considerando a sensibilidade a maiúsculas/minúsculas.
     flags = 0 if matchcase else re.IGNORECASE
@@ -289,7 +289,7 @@ def ler(caminho_diretorio):
         nome_base = os.path.basename(arquivo_pdf).replace(".pdf", "")
         caminho_txt_paginas_filtradas = os.path.join(caminho_diretorio, f"{nome_base}_decretos_paginas_filtradas.txt")
         caminho_txt_paragrafos_filtrados = os.path.join(caminho_diretorio, f"{nome_base}_decretos_paragrafos_filtrados.txt")
-        caminho_txt_decretos_nomeacao_orgao = os.path.join(caminho_diretorio, f"{nome_base}_decretos.txt")
+        caminho_txt_decretos = os.path.join(caminho_diretorio, f"{nome_base}_decretos.txt")
         
         print("Separando páginas...")
         if extrair_texto_pdf(arquivo_pdf, caminho_txt_paginas_filtradas, palavras_chave_gerais, matchcase):
@@ -301,12 +301,12 @@ def ler(caminho_diretorio):
                 
                 todos_decretos = extrair_decretos(texto_paragrafos, matchcase)
                 
-                decretos_nomeacao_orgao_final = filtrar_decretos_de_nomeacao_por_orgao(todos_decretos, matchcase)
+                decretos_final = filtrar_decretos(todos_decretos, matchcase)
 
-                if decretos_nomeacao_orgao_final:
-                    arquivo_decretos = salvar_documentos_em_arquivo(decretos_nomeacao_orgao_final, caminho_txt_decretos_nomeacao_orgao, "DECRETO") # Título mais genérico
+                if decretos_final:
+                    arquivo_decretos = salvar_documentos_em_arquivo(decretos_final, caminho_txt_decretos, "DECRETO") # Título mais genérico
                 else:
-                    print(f"Nenhum decreto de nomeação ou ampliação de vagas referente à SEAP ou IAT encontrado para salvar em '{caminho_txt_decretos_nomeacao_orgao}'.")
+                    print(f"Nenhum decreto de nomeação ou ampliação de vagas referente à SEAP ou IAT encontrado para salvar em '{caminho_txt_decretos}'.")
             else:
                 print(f"Falha ao filtrar parágrafos de '{caminho_txt_paginas_filtradas}'.")
         else:

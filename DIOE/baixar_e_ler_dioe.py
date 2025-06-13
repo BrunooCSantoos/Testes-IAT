@@ -132,14 +132,13 @@ def baixar_dioe(pasta_destino, caminho_arquivo_csv):
             print(f"Diário da data {data_diario} baixado e registrado no CSV.")
         else:
             print("Diário baixado, mas a data não foi registrada devido a um erro de extração.")
-        return numero_diario, False # Retorna o número do diário e False para indicar que foi baixado agora
 
     except Exception as e:
         print(f"Ocorreu um erro durante o processo de download: {e}")
     finally:
         driver.quit()
         print("Navegador fechado.")
-        return None, False # Retorna None e False em caso de erro
+        return numero_diario, False # Retorna None e False em caso de erro
 
 def start(caminho_diretorio):
     os.makedirs(caminho_diretorio, exist_ok=True)

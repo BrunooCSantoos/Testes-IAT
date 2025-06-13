@@ -181,7 +181,7 @@ def extrair_portarias(paragrafos, matchcase=False):
 
     return portarias_encontradas
 
-def filtrar_portarias_designacao_ferias_iat(portarias, matchcase=True):
+def filtrar_portarias(portarias, matchcase=True):
     portarias_filtrados = []
     # Define as flags para a expressão regular, considerando a sensibilidade a maiúsculas/minúsculas.
     flags = 0 if matchcase else re.IGNORECASE
@@ -249,6 +249,7 @@ def ler(caminho_diretorio):
 
     palavras_chave_gerais = [
         "PORTARIA Nº", "Portaria" "Designar", "férias",
+        "protocolo",
         "INSTITUTO ÁGUA E TERRA", "IAT"
     ]
 
@@ -256,7 +257,7 @@ def ler(caminho_diretorio):
         nome_base = os.path.basename(arquivo_pdf).replace(".pdf", "")
         caminho_txt_paginas_filtradas = os.path.join(caminho_diretorio, f"{nome_base}_portarias_paginas_filtradas.txt")
         caminho_txt_paragrafos_filtrados = os.path.join(caminho_diretorio, f"{nome_base}_portarias_paragrafos_filtrados.txt")
-        caminho_txt_portarias_designacao_iat = os.path.join(caminho_diretorio, f"{nome_base}_portarias.txt")
+        caminho_txt_portarias = os.path.join(caminho_diretorio, f"{nome_base}_portarias.txt")
 
         print("Separando páginas...")
         if extrair_texto_pdf(arquivo_pdf, caminho_txt_paginas_filtradas, palavras_chave_gerais, matchcase):
@@ -267,12 +268,12 @@ def ler(caminho_diretorio):
                 
                 todas_portarias = extrair_portarias(texto_paragrafos, matchcase)
                 
-                portarias_filtradas_e_classificadas = filtrar_portarias_designacao_ferias_iat(todas_portarias, matchcase)
+                portarias_filtradas = filtrar_portarias(todas_portarias, matchcase)
 
-                if portarias_filtradas_e_classificadas:
+                if portarias_filtradas:
                     arquivo_portarias = salvar_documentos_em_arquivo(
-                        portarias_filtradas_e_classificadas, 
-                        caminho_txt_portarias_designacao_iat, 
+                        portarias_filtradas, 
+                        caminho_txt_portarias, 
                         "PORTARIA"
                     )
                 else:

@@ -2,13 +2,13 @@ import re
 import os
 import csv
 import glob
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER
 
 def converter_txt_para_pdf(arquivo_txt, caminho_arquivo_pdf, diario_publicacao):
-    doc = SimpleDocTemplate(caminho_arquivo_pdf, pagesize=letter)
+    doc = SimpleDocTemplate(caminho_arquivo_pdf, pagesize=A4)
     estilo = getSampleStyleSheet()
     elementos_pdf = []
 
@@ -60,8 +60,6 @@ def converter_txt_para_pdf(arquivo_txt, caminho_arquivo_pdf, diario_publicacao):
     except Exception as e:
         print(f"Ocorreu um erro ao gerar o PDF: {e}")
 
-        
-    
 def registro_existe(lista_registros, novo_registro):
     chaves_comparacao = ["Tipo_Documento", "Numero_Documento", "Nome", "Situação"]
     
