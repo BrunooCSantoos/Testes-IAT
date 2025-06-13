@@ -26,44 +26,102 @@ def extrair_texto_pdf(caminho_pdf, caminho_txt_paginas_filtradas, palavras_chave
     return True
 
 def filtrar_paragrafos_por_palavras_chave(caminho_txt_entrada, caminho_txt_saida, palavras_chave, matchcase=False):
+    """
+    Filtra parágrafos de um arquivo de texto, capturando blocos que começam com "DECRETO"
+    ou contêm palavras-chave, e terminam com a assinatura "Governador do Estado".
+    Parágrafos de marcadores de página são sempre incluídos.
+
+    Args:
+        caminho_txt_entrada (str): O caminho para o arquivo de texto de entrada.
+        caminho_txt_saida (str): O caminho para o arquivo de texto de saída.
+        palavras_chave (list): Uma lista de palavras-chave para buscar.
+        matchcase (bool): Se True, a busca por palavras-chave e padrões será sensível a maiúsculas/minúsculas.
+                         Caso contrário, será insensível (padrão).
+    Returns:
+        bool: True se o processo de filtragem for bem-sucedido, False caso contrário.
+    """
     try:
-        with open(caminho_txt_entrada, 'r', encoding='utf-8') as f_entrada, \
-             open(caminho_txt_saida, 'w', encoding='utf-8') as f_saida:
-            
+        with open(caminho_txt_entrada, 'r', encoding='utf-8') as f_entrada:
             conteudo = f_entrada.read()
+            # Divide o conteúdo em parágrafos, considerando uma ou mais linhas em branco como separador
             paragrafos = re.split(r'\n\s*\n+', conteudo)
             flags = 0 if matchcase else re.IGNORECASE
             
+            # Compila os padrões regex uma única vez para otimização de desempenho
+            padrao_marcador_pagina = re.compile(r'--- Início da Página \d+ ---')
+            padrao_inicio_decreto = re.compile(r'DECRETO', flags=flags)
+            padrao_fim_governador = re.compile(r'Governador\s+do\s+Estado', flags=flags)
+            
+            # Constrói um padrão regex para buscar qualquer uma das palavras-chave fornecidas como palavra inteira
+            padrao_palavras_chave = re.compile(
+                r'\b(?:' + '|'.join(re.escape(palavra) for palavra in palavras_chave) + r')\b',
+                flags
+            )
+
+            # Lista para armazenar todos os blocos de parágrafos filtrados e marcadores de página
+            paragrafos_filtrados = []
+            # Lista temporária para armazenar as linhas do bloco que está sendo capturado atualmente
+            bloco_atual_linhas = []
+            # Sinalizador para indicar se estamos atualmente dentro de um bloco de interesse
+            capturando = False 
+
             for paragrafo in paragrafos:
-                # Remove espaços em branco do início e fim do parágrafo para uma correspondência precisa.
                 paragrafo_limpo = paragrafo.strip()
                 
-                # Critério 1: Verifica se é um marcador de página.
-                is_page_marker = re.match(r'--- Início da Página \d+ ---', paragrafo_limpo)
-                
+                # Critério 1: Verifica se é um marcador de página. Marcadores são sempre incluídos.
+                if padrao_marcador_pagina.match(paragrafo_limpo):
+                    if capturando and bloco_atual_linhas:
+                        # Se um marcador de página for encontrado no meio de um bloco capturado,
+                        # finalize o bloco anterior antes de adicionar o marcador.
+                        paragrafos_filtrados.append("\n".join(bloco_atual_linhas).strip())
+                        bloco_atual_linhas = []
+                        capturando = False
+                    paragrafos_filtrados.append(paragrafo_limpo) 
+                    continue # Pula para o próximo parágrafo
+
                 # Critério 2: Verifica se o parágrafo começa com "DECRETO".
-                starts_with_decreto = re.match(r'DECRETO', paragrafo_limpo, flags=flags)
-                
+                is_inicio_decreto = padrao_inicio_decreto.search(paragrafo_limpo)
                 # Critério 3: Verifica se o parágrafo termina com "Governador do Estado".
-                # Usa \s*$ para considerar espaços em branco opcionais antes do fim da linha.
-                ends_with_governador = re.search(r'Governador do Estado', paragrafo_limpo, flags=flags)
-                
+                is_fim_governador = padrao_fim_governador.search(paragrafo_limpo)
                 # Critério 4: Verifica se o parágrafo contém alguma das palavras-chave fornecidas.
-                # A \b garante que a palavra seja correspondida como uma palavra inteira.
-                contains_keywords = any(re.search(r'\b' + re.escape(palavra) + r'\b', paragrafo_limpo, flags=flags) 
-                                        for palavra in palavras_chave)
-                
-                # Inclui o parágrafo se qualquer um dos critérios for verdadeiro:
-                # É um marcador de página OU (começa com DECRETO E termina com Governador do Estado) OU contém palavras-chave.
-                if is_page_marker or \
-                   (starts_with_decreto and ends_with_governador) or \
-                   contains_keywords:
-                    # Escreve o parágrafo limpo no arquivo de saída, adicionando uma linha em branco
-                    # para manter a separação dos parágrafos no arquivo de saída.
-                    f_saida.write("\n\n" + paragrafo_limpo + '\n\n')
+                contains_keywords = padrao_palavras_chave.search(paragrafo_limpo)
+
+                # Define a condição para iniciar um NOVO bloco de interesse.
+                # Um novo bloco começa se for um "DECRETO" OU se contiver palavras-chave relevantes.
+                is_start_of_new_relevant_block = is_inicio_decreto or contains_keywords
+
+                if is_start_of_new_relevant_block:
+                    if capturando and bloco_atual_linhas:
+                        # Se já estava capturando um bloco (anterior) e encontrou um novo início de bloco relevante,
+                        # finalize o bloco anterior e adicione-o à lista de resultados.
+                        paragrafos_filtrados.append("\n".join(bloco_atual_linhas).strip())
+                    
+                    # Começa um novo bloco com o parágrafo atual
+                    bloco_atual_linhas = [paragrafo_limpo] 
+                    capturando = True
+                elif capturando:
+                    # Se estamos capturando um bloco, adicione o parágrafo atual a ele.
+                    bloco_atual_linhas.append(paragrafo_limpo)
+                    
+                    # Se o parágrafo adicionado contém o marcador de fim de bloco ("Governador do Estado"),
+                    # finalize o bloco atual.
+                    if is_fim_governador:
+                        paragrafos_filtrados.append("\n".join(bloco_atual_linhas).strip())
+                        bloco_atual_linhas = [] # Limpa para o próximo bloco
+                        capturando = False
+            
+            # Após percorrer todos os parágrafos, verifica se o último bloco ainda estava sendo capturado.
+            # Se sim, adiciona-o à lista de resultados.
+            if bloco_atual_linhas:
+                paragrafos_filtrados.append("\n".join(bloco_atual_linhas).strip())
+            
+            # Abre o arquivo de saída no modo de escrita e escreve todos os parágrafos filtrados.
+            # Cada bloco ou marcador de página é separado por duas quebras de linha para manter a formatação.
+            with open(caminho_txt_saida, 'w', encoding='utf-8') as f_saida:
+                f_saida.write('\n\n'.join(paragrafos_filtrados))
                     
     except Exception as e:
-        # Em caso de erro, imprime a mensagem de erro e retorna False.
+        # Em caso de qualquer erro durante a execução, imprime a mensagem de erro e retorna False.
         print(f"Erro ao filtrar parágrafos de '{caminho_txt_entrada}': {e}")
         return False
         
@@ -75,10 +133,12 @@ def extrair_decretos(paragrafos, matchcase=True):
     decreto_atual_linhas = []
     capturando = False
     flags = 0 if matchcase else re.IGNORECASE
+    numeros_decretos_existentes = set() # Novo: Armazena os números dos decretos já adicionados
 
     # Padrão para identificar o início de um decreto
+    # Modificado para capturar o número do decreto
     padrao_inicio_decreto = re.compile(
-        r'\bDECRETO\b', 
+        r'\bDECRETO\s*Nº?\s*(\d+)', 
         flags
     )
 
@@ -97,12 +157,29 @@ def extrair_decretos(paragrafos, matchcase=True):
         is_fim_bloco = padrao_fim_decreto_bloco.search(paragrafo)
 
         if is_inicio_decreto:
+            # Extrai o número do decreto
+            numero_decreto = is_inicio_decreto.group(1)
+
             if capturando and decreto_atual_linhas:
                 # Se já estava capturando e encontrou um novo decreto,
-                # finalize o anterior antes de começar um novo.
-                decretos_encontrados.append("\n".join(decreto_atual_linhas).strip())
-            decreto_atual_linhas = [paragrafo] # Começa um novo decreto com o parágrafo atual
-            capturando = True
+                # finalize o anterior antes de começar um novo (se não for duplicado).
+                finalized_decreto = "\n".join(decreto_atual_linhas).strip()
+                # Verifica duplicata para o decreto que estava sendo capturado anteriormente, se houver
+                match_numero_anterior = padrao_inicio_decreto.search(finalized_decreto)
+                if match_numero_anterior:
+                    num_anterior = match_numero_anterior.group(1)
+                    if num_anterior not in numeros_decretos_existentes:
+                        decretos_encontrados.append(finalized_decreto)
+                        numeros_decretos_existentes.add(num_anterior)
+
+            # Inicia um novo decreto se o número não for um duplicado
+            if numero_decreto not in numeros_decretos_existentes:
+                decreto_atual_linhas = [paragrafo] # Começa um novo decreto com o parágrafo atual
+                capturando = True
+            else:
+                # Se for um número duplicado, não inicia a captura para este decreto
+                capturando = False # Garante que não continuemos capturando para esta duplicata
+                decreto_atual_linhas = [] # Limpa as linhas atuais
         elif capturando:
             # Se estamos capturando, adicione o parágrafo atual ao decreto
             decreto_atual_linhas.append(paragrafo)
@@ -110,13 +187,27 @@ def extrair_decretos(paragrafos, matchcase=True):
             # Se o parágrafo adicionado contém o marcador de fim de bloco,
             # finalize o decreto atual.
             if is_fim_bloco:
-                decretos_encontrados.append("\n".join(decreto_atual_linhas).strip())
+                finalized_decreto = "\n".join(decreto_atual_linhas).strip()
+                # Extrai o número do decreto a ser adicionado
+                match_numero = padrao_inicio_decreto.search(finalized_decreto)
+                if match_numero:
+                    numero_decreto_finalizado = match_numero.group(1)
+                    if numero_decreto_finalizado not in numeros_decretos_existentes:
+                        decretos_encontrados.append(finalized_decreto)
+                        numeros_decretos_existentes.add(numero_decreto_finalizado) # Adiciona ao conjunto de números existentes
+                
                 decreto_atual_linhas = [] # Limpa para o próximo decreto
                 capturando = False
                 
     # Adiciona o último decreto se ainda estiver capturando ao final do loop
     if decreto_atual_linhas:
-        decretos_encontrados.append("\n".join(decreto_atual_linhas).strip())
+        finalized_decreto = "\n".join(decreto_atual_linhas).strip()
+        match_numero = padrao_inicio_decreto.search(finalized_decreto)
+        if match_numero:
+            numero_decreto_finalizado = match_numero.group(1)
+            if numero_decreto_finalizado not in numeros_decretos_existentes:
+                decretos_encontrados.append(finalized_decreto)
+                numeros_decretos_existentes.add(numero_decreto_finalizado)
 
     return decretos_encontrados
 
@@ -182,6 +273,8 @@ def remover_arquivos_temporarios(arquivos):
 def ler(caminho_diretorio):
     print("Iniciando leitura de decretos...")
     
+    matchcase = True
+
     padrao_pdf = os.path.join(caminho_diretorio, "EX*.pdf")
     arquivos_pdf = glob.glob(padrao_pdf)
     arquivo_decretos = None
@@ -199,13 +292,13 @@ def ler(caminho_diretorio):
         caminho_txt_decretos_nomeacao_orgao = os.path.join(caminho_diretorio, f"{nome_base}_decretos.txt")
         
         print("Separando páginas...")
-        if extrair_texto_pdf(arquivo_pdf, caminho_txt_paginas_filtradas, palavras_chave_gerais):
+        if extrair_texto_pdf(arquivo_pdf, caminho_txt_paginas_filtradas, palavras_chave_gerais, matchcase):
             print("Separando parágrafos...")
-            if filtrar_paragrafos_por_palavras_chave(caminho_txt_paginas_filtradas, caminho_txt_paragrafos_filtrados, palavras_chave_gerais):
+            if filtrar_paragrafos_por_palavras_chave(caminho_txt_paginas_filtradas, caminho_txt_paragrafos_filtrados, palavras_chave_gerais, matchcase):
                 with open(caminho_txt_paragrafos_filtrados, 'r', encoding='utf-8') as f:
                     texto_paragrafos = f.read().split('\n')
                 
-                matchcase = True
+                
                 todos_decretos = extrair_decretos(texto_paragrafos, matchcase)
                 
                 decretos_nomeacao_orgao_final = filtrar_decretos_de_nomeacao_por_orgao(todos_decretos, matchcase)

@@ -50,7 +50,6 @@ def segmentar_imagem(imagem_binarizada_input):
 
     return char_boxes
 
-
 def resolver_captcha_auto(caminho_captcha, idioma=['pt']):
     try:
         print(f"Lendo CAPTCHA do arquivo: {caminho_captcha}")
@@ -183,33 +182,3 @@ def resolver_captcha_auto(caminho_captcha, idioma=['pt']):
         print(f"Erro ao processar CAPTCHA: {e}")
         os.remove(caminho_captcha)
         return None
-
-# Example usage
-if __name__ == "__main__":
-    numeros = {
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "11",
-        "12",
-        "13",
-        "14",
-        "15"
-    }
-
-    for numero in numeros:
-        captcha_path = f"S:\\GEAD-DRH\\DIAFI-DRH\\DRH - GESTÃO DE PESSOAS\\APLICATIVOS\\Testes-IAT\\DIOE\\Captchas\\captcha {numero}.png"
-
-        resolved_text = resolver_captcha_auto(captcha_path)
-
-        if resolved_text:
-            print(f"\nCAPTCHA FINAL RESOLVIDO: {resolved_text}")
-        else:
-            print("\nNão foi possível resolver o CAPTCHA.")

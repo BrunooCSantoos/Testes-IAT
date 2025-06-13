@@ -27,8 +27,8 @@ def iniciar():
         ef.inserir_assunto("Teste")
         
         # Inserir todos os PDFs gerados como anexos
-        for anexo_path in anexos_pdf_gerados:
-            ef.inserir_anexos(anexo_path)
+        for anexo in anexos_pdf_gerados:
+            ef.inserir_anexos(anexo)
             
         ef.inserir_texto("Teste")
         ef.assinatura()
@@ -44,8 +44,8 @@ def iniciar():
                     print(f"Arquivo TXT temporário removido: {txt_file}")
                 except Exception as e:
                     print(f"Erro ao remover arquivo TXT temporário '{txt_file}': {e}")
-        
-        os.remove(anexos_pdf_gerados)
+        for anexo in anexos_pdf_gerados:
+            os.remove(anexo)
 
 if __name__ == "__main__":
     iniciar()

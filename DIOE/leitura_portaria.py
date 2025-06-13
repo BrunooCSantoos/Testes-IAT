@@ -31,40 +31,66 @@ def filtrar_paragrafos_por_palavras_chave(caminho_txt_entrada, caminho_txt_saida
             paragrafos = re.split(r'\n\s*\n+', conteudo)
             flags = 0 if matchcase else re.IGNORECASE
             
+            # Compila os padrões regex uma vez para melhor desempenho
+            padrao_marcador_pagina = re.compile(r'--- Início da Página \d+ ---')
+            padrao_inicio_portaria = re.compile(r'PORTARIA', flags=flags)
+            padrao_fim_bloco_administrativo = re.compile(r'Diretor\s*-\s*Presidente\s+do\s+Instituto\s+Água\s+e\s+Terra', flags=flags)
+            
+            # Constrói o padrão para qualquer palavra-chave
+            padrao_palavras_chave = re.compile(
+                r'\b(?:' + '|'.join(re.escape(palavra) for palavra in palavras_chave) + r')\b',
+                flags
+            )
+
+            # Variáveis para a lógica de captura
+            capturando_bloco = False
+            bloco_atual_linhas = []
+
             for paragrafo in paragrafos:
-                # Remove espaços em branco do início e fim do parágrafo para uma correspondência precisa.
                 paragrafo_limpo = paragrafo.strip()
                 
-                # Critério 1: Verifica se é um marcador de página.
-                is_page_marker = re.match(r'--- Início da Página \d+ ---', paragrafo_limpo)
-                
-                # Critério 2: Verifica se o parágrafo começa com "DECRETO".
-                starts_with_portaria = re.match(r'PORTARIA', paragrafo_limpo, flags=flags)
-                
-                # Critério 3: Verifica se o parágrafo termina com "Governador do Estado".
-                # Usa \s*$ para considerar espaços em branco opcionais antes do fim da linha.
-                ends_with = re.search(r'Diretor\s*-\s*Presidente do Instituto Água e Terra', paragrafo_limpo, flags=flags)
-                
-                # Critério 4: Verifica se o parágrafo contém alguma das palavras-chave fornecidas.
-                # A \b garante que a palavra seja correspondida como uma palavra inteira.
-                contains_keywords = any(re.search(r'\b' + re.escape(palavra) + r'\b', paragrafo_limpo, flags=flags) 
-                                        for palavra in palavras_chave)
-                
-                # Inclui o parágrafo se qualquer um dos critérios for verdadeiro:
-                # É um marcador de página OU (começa com DECRETO E termina com Governador do Estado) OU contém palavras-chave.
-                if is_page_marker or \
-                   (starts_with_portaria and ends_with) or \
-                   contains_keywords:
-                    # Escreve o parágrafo limpo no arquivo de saída, adicionando uma linha em branco
-                    # para manter a separação dos parágrafos no arquivo de saída.
-                    f_saida.write("\n\n" + paragrafo_limpo + '\n\n')
+                # Ignora marcadores de página
+                if padrao_marcador_pagina.match(paragrafo_limpo):
+                    continue
+
+                is_inicio_portaria = padrao_inicio_portaria.search(paragrafo_limpo)
+                is_fim_bloco_administrativo = padrao_fim_bloco_administrativo.search(paragrafo_limpo)
+                contains_keywords = padrao_palavras_chave.search(paragrafo_limpo)
+
+                # Lógica de início de um novo bloco de interesse
+                # Um bloco começa se for uma "PORTARIA" OU se contiver qualquer palavra-chave
+                # Se for o início de uma nova PORTARIA e já estamos capturando, finaliza o bloco anterior.
+                if is_inicio_portaria:
+                    if capturando_bloco and bloco_atual_linhas:
+                        f_saida.write("\n".join(bloco_atual_linhas) + '\n\n')
+                    bloco_atual_linhas = [paragrafo_limpo] # Começa um novo bloco
+                    capturando_bloco = True
+                elif contains_keywords and not capturando_bloco:
+                    # Se contiver palavras-chave e não estamos capturando, inicie a captura.
+                    # Isso captura blocos que não começam explicitamente com "PORTARIA" mas são relevantes.
+                    bloco_atual_linhas = [paragrafo_limpo]
+                    capturando_bloco = True
+                elif capturando_bloco:
+                    # Se estamos capturando, adicione o parágrafo atual ao bloco
+                    bloco_atual_linhas.append(paragrafo_limpo)
+                    
+                    # Se o parágrafo atual contém o marcador de fim de bloco administrativo,
+                    # e estamos no final de um bloco lógico (como uma portaria), finaliza a captura.
+                    # Aqui, a lógica de "dois Diretor-Presidente" é específica da extrair_portarias.
+                    # Para a filtragem geral, um único 'fim_bloco_administrativo' pode ser o suficiente para terminar o bloco atual.
+                    if is_fim_bloco_administrativo:
+                        f_saida.write("\n".join(bloco_atual_linhas) + '\n\n')
+                        bloco_atual_linhas = [] # Limpa para o próximo bloco
+                        capturando_bloco = False
+            
+            # Adiciona o último bloco se ainda estiver capturando ao final do loop
+            if bloco_atual_linhas:
+                f_saida.write("\n".join(bloco_atual_linhas) + '\n\n')
                     
     except Exception as e:
-        # Em caso de erro, imprime a mensagem de erro e retorna False.
         print(f"Erro ao filtrar parágrafos de '{caminho_txt_entrada}': {e}")
         return False
         
-    # Se a execução for bem-sucedida, retorna True.
     return True
 
 def extrair_portarias(paragrafos, matchcase=False):
@@ -73,16 +99,17 @@ def extrair_portarias(paragrafos, matchcase=False):
     capturando = False
     flags = 0 if matchcase else re.IGNORECASE
     fim_bloco_count = 0 # Contador para as ocorrências do padrão de fim de bloco
+    numeros_portarias_existentes = set() # Novo: Armazena os números das portarias já adicionadas
 
     # Padrão para identificar o início de uma portaria
     padrao_inicio_portaria = re.compile(
-        r'\bPORTARIA\b', 
+        r'\bPORTARIA\s*Nº?\s*(\d+)', # Modificado para capturar o número da portaria
         flags
     )
 
     # Padrão para identificar o fim de uma PORTARIA (fim de um bloco administrativo)
     padrao_fim_portaria_bloco = re.compile(
-        r'\bDiretor\s*-\s*Presidente do Instituto Água e Terra\b',
+        r'\bDiretor\s*-\s*Presidente\s+do\s+Instituto\s+Água\s+e\s+Terra\b',
         flags
     )
 
@@ -95,14 +122,28 @@ def extrair_portarias(paragrafos, matchcase=False):
         is_fim_bloco = padrao_fim_portaria_bloco.search(paragrafo)
 
         if is_inicio_portaria:
+            # Extrai o número da portaria
+            numero_portaria = is_inicio_portaria.group(1)
+
             if capturando and portaria_atual_linhas:
                 # Se já estava capturando e encontrou um novo início de portaria,
                 # finalize a portaria anterior (mesmo que o segundo delimitador não tenha sido encontrado).
                 # Isso é importante para evitar portarias "perdidas" se o padrão de fim não se repetir.
-                portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
-            portaria_atual_linhas = [paragrafo] # Começa uma nova portaria com o parágrafo atual
-            capturando = True
-            fim_bloco_count = 0 # Reseta o contador para a nova portaria
+                finalized_portaria = "\n".join(portaria_atual_linhas).strip()
+                # Verifica duplicata antes de adicionar (para a portaria anterior)
+                # Esta verificação é um pouco redundante aqui se o fluxo principal já faz a verificação,
+                # mas serve como um "fail-safe" caso a lógica de fim de bloco seja mais complexa.
+                # No entanto, a principal verificação de duplicidade ocorrerá quando a portaria for "fechada" abaixo.
+                
+            # Inicia uma nova portaria se o número não for um duplicado
+            if numero_portaria not in numeros_portarias_existentes:
+                portaria_atual_linhas = [paragrafo] # Começa uma nova portaria com o parágrafo atual
+                capturando = True
+                fim_bloco_count = 0 # Reseta o contador para a nova portaria
+            else:
+                # Se for um número duplicado, não inicia a captura para esta portaria
+                capturando = False # Garante que não continuemos capturando para esta duplicata
+                portaria_atual_linhas = [] # Limpa as linhas atuais
         elif capturando:
             # Se estamos capturando, adicione o parágrafo atual à portaria
             portaria_atual_linhas.append(paragrafo)
@@ -114,7 +155,15 @@ def extrair_portarias(paragrafos, matchcase=False):
                 # Se esta é a segunda ocorrência do marcador de fim de bloco,
                 # finalize a portaria atual.
                 if fim_bloco_count == 2:
-                    portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
+                    finalized_portaria = "\n".join(portaria_atual_linhas).strip()
+                    # Extrai o número da portaria a ser adicionada
+                    match_numero = padrao_inicio_portaria.search(finalized_portaria)
+                    if match_numero:
+                        numero_portaria_finalizada = match_numero.group(1)
+                        if numero_portaria_finalizada not in numeros_portarias_existentes:
+                            portarias_encontradas.append(finalized_portaria)
+                            numeros_portarias_existentes.add(numero_portaria_finalizada) # Adiciona ao conjunto de números existentes
+                    
                     portaria_atual_linhas = [] # Limpa para a próxima portaria
                     capturando = False
                     fim_bloco_count = 0 # Reseta o contador
@@ -122,7 +171,13 @@ def extrair_portarias(paragrafos, matchcase=False):
     # Adiciona a última portaria se ainda estiver capturando ao final do loop
     # Isso pode ocorrer se o segundo delimitador não foi encontrado até o final do documento.
     if portaria_atual_linhas:
-        portarias_encontradas.append("\n".join(portaria_atual_linhas).strip())
+        finalized_portaria = "\n".join(portaria_atual_linhas).strip()
+        match_numero = padrao_inicio_portaria.search(finalized_portaria)
+        if match_numero:
+            numero_portaria_finalizada = match_numero.group(1)
+            if numero_portaria_finalizada not in numeros_portarias_existentes:
+                portarias_encontradas.append(finalized_portaria)
+                numeros_portarias_existentes.add(numero_portaria_finalizada)
 
     return portarias_encontradas
 
@@ -136,7 +191,7 @@ def filtrar_portarias_designacao_ferias_iat(portarias, matchcase=True):
     padrao_designacao = re.compile(r'Designar|Designação|Designa', flags)
     padrao_ferias = re.compile(r'férias', flags)
     # Novo padrão para verificar a frase "Governador do Estado"
-    padrao_fim = re.compile(r'Diretor\s*-\s*Presidente do Instituto Água e Terra', flags)
+    padrao_fim = re.compile(r'Diretor\s*-\s*Presidente\s+do\s+Instituto\s+Água\s+e\s+Terra', flags)
     
     # Itera sobre os decretos usando índices
     for i in range(len(portarias)):
@@ -185,13 +240,15 @@ def remover_arquivos_temporarios(arquivos):
 
 def ler(caminho_diretorio):
     print("Iniciando leitura de portarias...")
+
+    matchcase = True
     
     padrao_pdf = os.path.join(caminho_diretorio, "EX*.pdf")
     arquivos_pdf = glob.glob(padrao_pdf)
     arquivo_portarias = None
 
     palavras_chave_gerais = [
-        "PORTARIA Nº", "Designar", "férias",
+        "PORTARIA Nº", "Portaria" "Designar", "férias",
         "INSTITUTO ÁGUA E TERRA", "IAT"
     ]
 
@@ -202,13 +259,12 @@ def ler(caminho_diretorio):
         caminho_txt_portarias_designacao_iat = os.path.join(caminho_diretorio, f"{nome_base}_portarias.txt")
 
         print("Separando páginas...")
-        if extrair_texto_pdf(arquivo_pdf, caminho_txt_paginas_filtradas, palavras_chave_gerais):
+        if extrair_texto_pdf(arquivo_pdf, caminho_txt_paginas_filtradas, palavras_chave_gerais, matchcase):
             print("Separando parágrafos...")
-            if filtrar_paragrafos_por_palavras_chave(caminho_txt_paginas_filtradas, caminho_txt_paragrafos_filtrados, palavras_chave_gerais):
+            if filtrar_paragrafos_por_palavras_chave(caminho_txt_paginas_filtradas, caminho_txt_paragrafos_filtrados, palavras_chave_gerais, matchcase):
                 with open(caminho_txt_paragrafos_filtrados, 'r', encoding='utf-8') as f:
                     texto_paragrafos = f.read().split('\n')
                 
-                matchcase = True
                 todas_portarias = extrair_portarias(texto_paragrafos, matchcase)
                 
                 portarias_filtradas_e_classificadas = filtrar_portarias_designacao_ferias_iat(todas_portarias, matchcase)
