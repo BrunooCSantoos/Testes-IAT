@@ -1,5 +1,5 @@
 import baixar_e_ler_dioe
-import expresso_funcoes as ef
+import DIOE.expresso_dioe as ef
 from informacoes import extrair_e_salvar_informacoes_dioe
 import os
 from datetime import datetime # Importar para usar a data atual

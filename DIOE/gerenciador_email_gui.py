@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 # Importa a função iniciar modificada do main.py
 import main as automacao_email_principal
 # Importa as funções do expresso_funcoes.py
-import expresso_funcoes as funcoes_expresso
+import DIOE.expresso_dioe as funcoes_expresso
 
 ARQUIVO_CONFIG = "configuracao_email.json"
 
