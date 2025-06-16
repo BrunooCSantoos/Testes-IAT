@@ -103,7 +103,7 @@ def extrair_portarias(paragrafos, matchcase=False):
 
     # Padrão para identificar o início de uma portaria
     padrao_inicio_portaria = re.compile(
-        r'\bPORTARIA\s*Nº?\s*(\d+)', # Modificado para capturar o número da portaria
+        r'\bPORTARIA\s*Nº?\s*(\d+(?:[\.\-]\d+)*)', # Modificado para capturar o número da portaria
         flags
     )
 

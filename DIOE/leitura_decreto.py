@@ -138,7 +138,7 @@ def extrair_decretos(paragrafos, matchcase=True):
     # Padrão para identificar o início de um decreto
     # Modificado para capturar o número do decreto
     padrao_inicio_decreto = re.compile(
-        r'\bDECRETO\s*Nº?\s*(\d+)', 
+        r'\bDECRETO\s*Nº?\s*(\d+(?:[\.\-]\d+)*)', 
         flags
     )
 
@@ -163,13 +163,13 @@ def extrair_decretos(paragrafos, matchcase=True):
             if capturando and decreto_atual_linhas:
                 # Se já estava capturando e encontrou um novo decreto,
                 # finalize o anterior antes de começar um novo (se não for duplicado).
-                finalized_decreto = "\n".join(decreto_atual_linhas).strip()
+                finalizado_decreto = "\n".join(decreto_atual_linhas).strip()
                 # Verifica duplicata para o decreto que estava sendo capturado anteriormente, se houver
-                match_numero_anterior = padrao_inicio_decreto.search(finalized_decreto)
+                match_numero_anterior = padrao_inicio_decreto.search(finalizado_decreto)
                 if match_numero_anterior:
                     num_anterior = match_numero_anterior.group(1)
                     if num_anterior not in numeros_decretos_existentes:
-                        decretos_encontrados.append(finalized_decreto)
+                        decretos_encontrados.append(finalizado_decreto)
                         numeros_decretos_existentes.add(num_anterior)
 
             # Inicia um novo decreto se o número não for um duplicado
@@ -187,13 +187,13 @@ def extrair_decretos(paragrafos, matchcase=True):
             # Se o parágrafo adicionado contém o marcador de fim de bloco,
             # finalize o decreto atual.
             if is_fim_bloco:
-                finalized_decreto = "\n".join(decreto_atual_linhas).strip()
+                finalizado_decreto = "\n".join(decreto_atual_linhas).strip()
                 # Extrai o número do decreto a ser adicionado
-                match_numero = padrao_inicio_decreto.search(finalized_decreto)
+                match_numero = padrao_inicio_decreto.search(finalizado_decreto)
                 if match_numero:
                     numero_decreto_finalizado = match_numero.group(1)
                     if numero_decreto_finalizado not in numeros_decretos_existentes:
-                        decretos_encontrados.append(finalized_decreto)
+                        decretos_encontrados.append(finalizado_decreto)
                         numeros_decretos_existentes.add(numero_decreto_finalizado) # Adiciona ao conjunto de números existentes
                 
                 decreto_atual_linhas = [] # Limpa para o próximo decreto
@@ -201,12 +201,12 @@ def extrair_decretos(paragrafos, matchcase=True):
                 
     # Adiciona o último decreto se ainda estiver capturando ao final do loop
     if decreto_atual_linhas:
-        finalized_decreto = "\n".join(decreto_atual_linhas).strip()
-        match_numero = padrao_inicio_decreto.search(finalized_decreto)
+        finalizado_decreto = "\n".join(decreto_atual_linhas).strip()
+        match_numero = padrao_inicio_decreto.search(finalizado_decreto)
         if match_numero:
             numero_decreto_finalizado = match_numero.group(1)
             if numero_decreto_finalizado not in numeros_decretos_existentes:
-                decretos_encontrados.append(finalized_decreto)
+                decretos_encontrados.append(finalizado_decreto)
                 numeros_decretos_existentes.add(numero_decreto_finalizado)
 
     return decretos_encontrados
@@ -216,31 +216,33 @@ def filtrar_decretos(decretos, matchcase=False):
     # Define as flags para a expressão regular, considerando a sensibilidade a maiúsculas/minúsculas.
     flags = 0 if matchcase else re.IGNORECASE
     
-    # Compila os padrões regex para eficiência
+    # Padrões nomeação SEAP
     padrao_inicio_decreto = re.compile(r'DECRETO', flags)
     padrao_nomeacao = re.compile(r'Nomeia|Nomeação', flags)
     padrao_orgao_seap = re.compile(r'Secretaria\s+de\s+Estado\s+da\s+Administração\s+e\s+da\s+Previdência|SEAP', flags)
+    padrao_qppe = re.compile(r'QPPE', flags)
     padrao_orgao_iat = re.compile(r'INSTITUTO\s+ÁGUA\s+E\s+TERRA|\bIAT\b', flags)
     # Novo padrão para verificar a frase "Governador do Estado"
     padrao_fim = re.compile(r'Governador\s+do\s+Estado', flags)
     
     # Itera sobre os decretos usando índices
     for i in range(len(decretos)):
-        current_decreto_conteudo = decretos[i].strip() # Pega o conteúdo do decreto atual
+        decreto_atual_conteudo = decretos[i].strip() # Pega o conteúdo do decreto atual
         
         # Primeiro critério: O decreto atual DEVE começar com "DECRETO"
-        if not padrao_inicio_decreto.search(current_decreto_conteudo):
+        if not padrao_inicio_decreto.search(decreto_atual_conteudo):
             continue # Se não começar com "DECRETO", pula para o próximo decreto
         
-        # Realiza a busca dos padrões na string concatenada da janela
-        is_nomeacao = bool(padrao_nomeacao.search(current_decreto_conteudo))
-        is_seap = bool(padrao_orgao_seap.search(current_decreto_conteudo))
-        is_iat = bool(padrao_orgao_iat.search(current_decreto_conteudo))
-        is_governador_do_estado = bool(padrao_fim.search(current_decreto_conteudo)) # Nova verificação
+        # Filtros de nomeação SEAP
+        is_nomeacao = bool(padrao_nomeacao.search(decreto_atual_conteudo))
+        is_seap = bool(padrao_orgao_seap.search(decreto_atual_conteudo))
+        is_qppe = bool(padrao_qppe.search(decreto_atual_conteudo))
+        is_iat = bool(padrao_orgao_iat.search(decreto_atual_conteudo))
+        is_governador_do_estado = bool(padrao_fim.search(decreto_atual_conteudo)) # Nova verificação
         
         # Se todos os critérios forem atendidos pela janela, adiciona o *decreto atual* à lista filtrada
-        if is_nomeacao and (is_seap or is_iat) and is_governador_do_estado:
-            decretos_filtrados.append(current_decreto_conteudo)
+        if is_nomeacao and ((is_seap and is_qppe) or is_iat) and is_governador_do_estado:
+            decretos_filtrados.append(decreto_atual_conteudo)
 
     return decretos_filtrados
 
@@ -281,7 +283,7 @@ def ler(caminho_diretorio):
 
     palavras_chave_gerais = [
         "DECRETO", "Nomeação", "Nomeia", 
-        "Art. 1",
+        "QPPE", "Art. 1",
         "Secretaria de Estado da Administração e da Previdência - SEAP", "INSTITUTO ÁGUA E TERRA", "IAT",
     ]
     
